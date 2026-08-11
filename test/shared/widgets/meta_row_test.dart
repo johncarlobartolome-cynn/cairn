@@ -53,6 +53,40 @@ void main() {
     expect(tester.getSize(find.byType(Wrap)).height, greaterThan(20));
   });
 
+  testWidgets('never strands a separator at the end of a wrapped line', (
+    tester,
+  ) async {
+    const items = ['2,922 m', 'Hard', '8 h', 'Benguet'];
+    await pumpCairn(tester, const MetaRow(items), width: 110);
+
+    // Confirm the break actually happened, or the assertion below proves
+    // nothing.
+    final lineHeight = tester.getSize(find.text(items.first)).height;
+    expect(
+      tester.getSize(find.byType(Wrap)).height,
+      greaterThan(lineHeight * 1.5),
+      reason: 'the width should have forced a wrap',
+    );
+
+    final separators = find.text(CairnGlyph.metaSeparator);
+    expect(separators, findsNWidgets(items.length - 1));
+    final itemRects = items.map((t) => tester.getRect(find.text(t))).toList();
+
+    for (var i = 0; i < separators.evaluate().length; i++) {
+      final sep = tester.getRect(separators.at(i));
+      final hasItemBesideIt = itemRects.any(
+        (r) =>
+            r.left >= sep.right - 1 &&
+            (r.center.dy - sep.center.dy).abs() < lineHeight / 2,
+      );
+      expect(
+        hasItemBesideIt,
+        isTrue,
+        reason: 'the separator at $sep is the last glyph on its line',
+      );
+    }
+  });
+
   testWidgets('honours an override style', (tester) async {
     await pumpCairn(
       tester,

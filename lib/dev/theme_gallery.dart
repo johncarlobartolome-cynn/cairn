@@ -36,9 +36,8 @@ class _ThemeGalleryAppState extends State<ThemeGalleryApp> {
 
   bool get _isDark => _mode == ThemeMode.dark;
 
-  void _toggle() => setState(
-        () => _mode = _isDark ? ThemeMode.light : ThemeMode.dark,
-      );
+  void _toggle() =>
+      setState(() => _mode = _isDark ? ThemeMode.light : ThemeMode.dark);
 
   @override
   Widget build(BuildContext context) {
@@ -84,74 +83,71 @@ class _GalleryPageState extends State<GalleryPage> {
           : SystemUiOverlayStyle.dark,
       child: Scaffold(
         body: SafeArea(
-          child: Stack(
-            children: [
-              ListView(
-                padding: const EdgeInsets.only(
-                  left: CairnSpace.page,
-                  right: CairnSpace.page,
-                  top: CairnSpace.x12,
-                  // Clears the floating nav.
-                  bottom: CairnSpace.x32 * 3,
-                ),
-                children: [
-                  _Header(
-                    isDark: widget.isDark,
-                    onToggleBrightness: widget.onToggleBrightness,
+          // The Builder puts the clearance read below the SafeArea, where the
+          // bottom inset has already been consumed. Reading it from this
+          // State's own context would count the gesture inset twice.
+          child: Builder(
+            builder: (innerContext) => Stack(
+              children: [
+                ListView(
+                  padding: EdgeInsets.only(
+                    left: CairnSpace.page,
+                    right: CairnSpace.page,
+                    top: CairnSpace.x12,
+                    // Asked for, never guessed, so the last badge row scrolls
+                    // clear of the floating nav instead of dying behind it.
+                    bottom: PillNav.clearanceFor(innerContext),
                   ),
-                  const SizedBox(height: CairnSpace.x24),
-                  _Group(
-                    label: 'Filter pills',
-                    child: FilterPillRow(
-                      labels: const ['All', 'To climb', 'Climbed'],
-                      selectedIndex: _filter,
-                      padding: EdgeInsets.zero,
-                      onSelected: (i) => setState(() => _filter = i),
+                  children: [
+                    _Header(
+                      isDark: widget.isDark,
+                      onToggleBrightness: widget.onToggleBrightness,
                     ),
-                  ),
-                  // Side by side, because the pair's point is the contrast.
-                  const _Group(
-                    label: 'Peak card · climbed vs to climb',
-                    child: _PeakCardPair(),
-                  ),
-                  const _Group(
-                    label: 'Stat tiles',
-                    child: _StatGrid(),
-                  ),
-                  const _Group(
-                    label: 'Badge tiles',
-                    child: _BadgeGrid(),
-                  ),
-                  const _Group(
-                    label: 'Frosted sheet over a hero',
-                    child: _FrostedDemo(),
-                  ),
-                  const _Group(
-                    label: 'Meta row',
-                    child: MetaRow(['2,922 m', 'Hard', '8 h', 'Benguet']),
-                  ),
-                  const _Group(
-                    label: 'Buttons and fields',
-                    child: _ControlsDemo(),
-                  ),
-                  const _Group(
-                    label: 'Type scale',
-                    child: _TypeSpecimen(),
-                  ),
-                  _Group(
-                    label: 'Palette',
-                    child: _Swatches(palette: colors),
-                  ),
-                ],
-              ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: PillNav(
-                  currentIndex: _navIndex,
-                  onSelected: (i) => setState(() => _navIndex = i),
+                    const SizedBox(height: CairnSpace.x24),
+                    _Group(
+                      label: 'Filter pills',
+                      child: FilterPillRow(
+                        labels: const ['All', 'To climb', 'Climbed'],
+                        selectedIndex: _filter,
+                        padding: EdgeInsets.zero,
+                        onSelected: (i) => setState(() => _filter = i),
+                      ),
+                    ),
+                    // Side by side, because the pair's point is the contrast.
+                    const _Group(
+                      label: 'Peak card · climbed vs to climb',
+                      child: _PeakCardPair(),
+                    ),
+                    const _Group(label: 'Stat tiles', child: _StatGrid()),
+                    const _Group(label: 'Badge tiles', child: _BadgeGrid()),
+                    const _Group(
+                      label: 'Frosted sheet over a hero',
+                      child: _FrostedDemo(),
+                    ),
+                    const _Group(
+                      label: 'Meta row',
+                      child: MetaRow(['2,922 m', 'Hard', '8 h', 'Benguet']),
+                    ),
+                    const _Group(
+                      label: 'Buttons and fields',
+                      child: _ControlsDemo(),
+                    ),
+                    const _Group(label: 'Type scale', child: _TypeSpecimen()),
+                    _Group(
+                      label: 'Palette',
+                      child: _Swatches(palette: colors),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: PillNav(
+                    currentIndex: _navIndex,
+                    onSelected: (i) => setState(() => _navIndex = i),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -350,13 +346,17 @@ class _StatGrid extends StatelessWidget {
               ),
             ),
             SizedBox(width: CairnSpace.x12),
-            Expanded(child: StatTile(value: 'Hard', caption: 'Difficulty')),
+            Expanded(
+              child: StatTile(value: 'Hard', caption: 'Difficulty'),
+            ),
           ],
         ),
         SizedBox(height: CairnSpace.x12),
         Row(
           children: [
-            Expanded(child: StatTile(value: '8 h', caption: 'Est. hours')),
+            Expanded(
+              child: StatTile(value: '8 h', caption: 'Est. hours'),
+            ),
             SizedBox(width: CairnSpace.x12),
             Expanded(
               child: StatTile(

@@ -71,4 +71,37 @@ void main() {
       findsWidgets,
     );
   });
+
+  testWidgets('reserves the clearance the nav asks for', (tester) async {
+    await pumpGallery(tester);
+
+    final listView = tester.widget<ListView>(find.byType(ListView));
+    final padding = listView.padding!.resolve(TextDirection.ltr);
+    final context = tester.element(find.byType(ListView));
+
+    expect(padding.bottom, greaterThanOrEqualTo(PillNav.clearanceFor(context)));
+  });
+
+  testWidgets('scrolled to the end, the last content clears the nav', (
+    tester,
+  ) async {
+    // Phone height, so the list genuinely scrolls rather than fitting at once.
+    await tester.binding.setSurfaceSize(const Size(420, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const ThemeGalleryApp());
+    await tester.pumpAndSettle();
+
+    await tester.fling(find.byType(ListView), const Offset(0, -8000), 5000);
+    await tester.pumpAndSettle();
+
+    // The gold swatch caption is the very last thing in the catalogue, so it is
+    // the one that proves nothing is trapped behind the floating bar.
+    final lastContent = tester.getRect(find.text('gold'));
+    final navTop = tester.getRect(
+      find
+          .descendant(of: find.byType(PillNav), matching: find.byType(Material))
+          .first,
+    ).top;
+    expect(lastContent.bottom, lessThanOrEqualTo(navTop));
+  });
 }

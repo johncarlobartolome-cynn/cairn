@@ -62,6 +62,46 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  // The bar's own Material, not the Scaffold's.
+  final barFinder = find
+      .descendant(of: find.byType(PillNav), matching: find.byType(Material))
+      .first;
+
+  testWidgets('barHeight matches what it actually renders', (tester) async {
+    // clearanceFor is only worth trusting if this constant is not a guess.
+    await pumpCairn(tester, PillNav(currentIndex: 0, onSelected: (_) {}));
+
+    expect(tester.getSize(barFinder).height, PillNav.barHeight);
+  });
+
+  testWidgets('publishes clearance covering the bar, both gaps and the inset', (
+    tester,
+  ) async {
+    late BuildContext scrollContext;
+    await pumpCairn(
+      tester,
+      Builder(
+        builder: (context) {
+          // Stands in for a scroll view sitting beside the nav. Here that is
+          // over a raw screen, so the inset is still unconsumed and both the
+          // nav and the clearance see the same 34.
+          scrollContext = context;
+          return PillNav(currentIndex: 0, onSelected: (_) {});
+        },
+      ),
+      alignment: Alignment.bottomCenter,
+      safeAreaInset: const EdgeInsets.only(bottom: gestureInset),
+    );
+
+    final clearance = PillNav.clearanceFor(scrollContext);
+    final screenBottom = tester.getSize(find.byType(MaterialApp)).height;
+    final barTop = tester.getRect(barFinder).top;
+
+    // Everything the nav occupies fits inside the clearance, with the 12 of
+    // breathing room still to spare.
+    expect(clearance, greaterThanOrEqualTo(screenBottom - barTop + 12));
+  });
+
   testWidgets('keeps a 12 gap when already inside a SafeArea', (tester) async {
     // The outer SafeArea has consumed the inset, so the nav must add only its
     // 12 rather than double-counting.

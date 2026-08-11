@@ -32,6 +32,27 @@ class PillNav extends StatelessWidget {
     (icon: Icons.workspace_premium_rounded, label: 'Badges'),
   ];
 
+  /// Height of the bar itself, excluding any inset below it. True by
+  /// construction: each destination is [CairnSize.navItem] tall and the pill
+  /// adds one padding step on each side.
+  static const double barHeight = CairnSize.navItem + CairnSpace.x4 * 2;
+
+  /// Bottom padding a scroll view owes this nav so its last item can scroll
+  /// clear instead of dying behind the bar.
+  ///
+  /// Pass a context from inside the same [SafeArea] the nav sits in. Both read
+  /// `MediaQuery.paddingOf`, which a [SafeArea] zeroes once it has consumed the
+  /// inset, so the two agree whether they sit inside one or over a raw screen
+  /// and the gesture inset is never counted twice.
+  ///
+  /// Covers: the inset, the nav's own 12 below the bar, the bar, and one more
+  /// 12 so content stops short of the bar rather than touching it.
+  static double clearanceFor(BuildContext context) =>
+      MediaQuery.paddingOf(context).bottom +
+      CairnSpace.x12 +
+      barHeight +
+      CairnSpace.x12;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.cairnColors;
@@ -96,8 +117,9 @@ class _NavItem extends StatelessWidget {
     // Inside a brand-filled bar the active item inverts: onBrand fill with a
     // brand glyph. That keeps "exactly one filled pill" true in both themes,
     // where accent on brand would be too close in value to read.
-    final foreground =
-        active ? colors.brand : colors.onBrand.withValues(alpha: 0.7);
+    final foreground = active
+        ? colors.brand
+        : colors.onBrand.withValues(alpha: 0.7);
 
     return Semantics(
       button: true,
@@ -108,7 +130,9 @@ class _NavItem extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(vertical: CairnSpace.x12),
+          // Fixed height, so PillNav.barHeight stays honest.
+          height: CairnSize.navItem,
+          alignment: Alignment.center,
           decoration: ShapeDecoration(
             color: active ? colors.onBrand : Colors.transparent,
             shape: const StadiumBorder(),

@@ -194,6 +194,11 @@ abstract final class CairnSize {
   /// Icon in the floating pill nav.
   static const double navIcon = 22;
 
+  /// Height of one destination in the floating pill nav. Fixed rather than left
+  /// to its content, so the bar's height is known without measuring text. That
+  /// is what lets the nav publish the clearance a scroll view owes it.
+  static const double navItem = 44;
+
   /// Photo aspect ratio inside a peak card. Not specified; 4:3 gives the photo
   /// enough height to carry the mood without pushing the list to one card a
   /// screen.

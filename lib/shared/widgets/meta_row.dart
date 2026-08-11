@@ -8,6 +8,11 @@ import '../extensions/theme_context.dart';
 /// Built on [Wrap] rather than [Row]: a peak card at 320dp with four facts on
 /// it has to fold onto a second line instead of overflowing, and the data model
 /// makes most fields nullable, so the item count is never fixed.
+///
+/// A separator is glued to the item that follows it, and the pair travels as a
+/// single [Wrap] child. A line break therefore carries the separator down with
+/// its item instead of stranding it as the last glyph on a line. No caller has
+/// to think about it.
 class MetaRow extends StatelessWidget {
   const MetaRow(this.items, {this.style, super.key});
 
@@ -34,13 +39,21 @@ class MetaRow extends StatelessWidget {
       ),
     );
 
-    final children = <Widget>[];
-    for (var i = 0; i < parts.length; i++) {
-      if (i > 0) {
-        children.add(Text(CairnGlyph.metaSeparator, style: separator));
-      }
-      children.add(Text(parts[i], style: effective));
-    }
+    final children = <Widget>[
+      Text(parts.first, style: effective),
+      for (final part in parts.skip(1))
+        // One child, so the break happens before the separator, never after it.
+        // Wrap hands each child its own maxWidth, which keeps the Flexible
+        // legal and lets a long fact still wrap inside the pair.
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(CairnGlyph.metaSeparator, style: separator),
+            const SizedBox(width: CairnSpace.x8),
+            Flexible(child: Text(part, style: effective)),
+          ],
+        ),
+    ];
 
     return Wrap(
       spacing: CairnSpace.x8,
