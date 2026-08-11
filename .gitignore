@@ -47,6 +47,9 @@ app.*.map.json
 # Coverage
 coverage/
 
+# Claude Code (settings.json is shared; local overrides are not)
+.claude/settings.local.json
+
 # Web related
 lib/generated_plugin_registrant.dart
 
