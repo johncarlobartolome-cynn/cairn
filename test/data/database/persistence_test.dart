@@ -25,9 +25,9 @@ void main() {
   tearDown(() => dir.delete(recursive: true));
 
   test('seeded peaks and a logged climb survive close and reopen', () async {
-    // Local, not UTC: drift stores a DateTime as Unix epoch seconds and reads
-    // it back in the device's zone, so a local value round-trips exactly.
-    final climbedOn = DateTime(2026, 8, 11);
+    // Written with a local wall-clock time, read back as the calendar day it
+    // fell on. See climb_date_test.dart for why the column works this way.
+    final climbedOn = DateTime(2026, 8, 11, 16, 20);
 
     // First run: the file does not exist yet, so beforeOpen seeds it.
     final first = AppDatabase(NativeDatabase(file));
@@ -60,7 +60,7 @@ void main() {
     final climbs = await ClimbDao(second).watchAll().first;
     expect(climbs, hasLength(1));
     expect(climbs.single.mountainId, pulag.id);
-    expect(climbs.single.date, climbedOn);
+    expect(climbs.single.date, DateTime.utc(2026, 8, 11));
     expect(climbs.single.notes, 'Sea of clouds at sunrise.');
     expect(climbs.single.photoFilenames, ['pulag-summit.jpg']);
   });

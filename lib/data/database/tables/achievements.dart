@@ -31,6 +31,9 @@ class Achievements extends Table {
 
   TextColumn get type => textEnum<AchievementType>()();
 
+  /// A real timestamp, not a calendar day: the moment the badge fired. Left on
+  /// Drift's default epoch-second storage, because the instant is the point.
+  /// Contrast `climbs.date`, a day that must not move when the timezone does.
   DateTimeColumn get unlockedAt => dateTime()();
 
   /// Null for a milestone badge. Deleting a peak takes its badge with it.

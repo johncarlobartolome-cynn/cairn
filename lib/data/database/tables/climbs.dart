@@ -1,27 +1,8 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart';
 
+import '../converters/date_only_converter.dart';
+import '../converters/photo_filenames_converter.dart';
 import 'mountains.dart';
-
-/// Stores climb photos as a JSON list of bare filenames.
-///
-/// Filenames only, never absolute paths. The app container directory changes
-/// between installs, so a stored path resolves to nothing after a reinstall.
-/// Callers resolve each filename against the documents directory at render
-/// time.
-class PhotoFilenamesConverter extends TypeConverter<List<String>, String> {
-  const PhotoFilenamesConverter();
-
-  @override
-  List<String> fromSql(String fromDb) {
-    if (fromDb.isEmpty) return const [];
-    return (jsonDecode(fromDb) as List<dynamic>).cast<String>();
-  }
-
-  @override
-  String toSql(List<String> value) => jsonEncode(value);
-}
 
 /// One logged ascent of one peak. A peak can be climbed more than once.
 @DataClassName('Climb')
@@ -34,8 +15,10 @@ class Climbs extends Table {
   IntColumn get mountainId =>
       integer().references(Mountains, #id, onDelete: KeyAction.cascade)();
 
-  /// Required: a climb with no date is not a climb.
-  DateTimeColumn get date => dateTime()();
+  /// A calendar day, not a timestamp: 11 August stays 11 August whatever the
+  /// phone's timezone does. Stored as `YYYY-MM-DD` text by
+  /// [DateOnlyConverter]. Required, because a climb with no date is not a climb.
+  TextColumn get date => text().map(const DateOnlyConverter())();
 
   TextColumn get companions => text().nullable()();
 

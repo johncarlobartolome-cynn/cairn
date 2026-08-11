@@ -565,15 +565,15 @@ class $ClimbsTable extends Climbs with TableInfo<$ClimbsTable, Climb> {
       'REFERENCES mountains (id) ON DELETE CASCADE',
     ),
   );
-  static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
-  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
-    'date',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<DateTime, String> date =
+      GeneratedColumn<String>(
+        'date',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<DateTime>($ClimbsTable.$converterdate);
   static const VerificationMeta _companionsMeta = const VerificationMeta(
     'companions',
   );
@@ -636,14 +636,6 @@ class $ClimbsTable extends Climbs with TableInfo<$ClimbsTable, Climb> {
     } else if (isInserting) {
       context.missing(_mountainIdMeta);
     }
-    if (data.containsKey('date')) {
-      context.handle(
-        _dateMeta,
-        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_dateMeta);
-    }
     if (data.containsKey('companions')) {
       context.handle(
         _companionsMeta,
@@ -673,10 +665,12 @@ class $ClimbsTable extends Climbs with TableInfo<$ClimbsTable, Climb> {
         DriftSqlType.int,
         data['${effectivePrefix}mountain_id'],
       )!,
-      date: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}date'],
-      )!,
+      date: $ClimbsTable.$converterdate.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}date'],
+        )!,
+      ),
       companions: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}companions'],
@@ -699,6 +693,8 @@ class $ClimbsTable extends Climbs with TableInfo<$ClimbsTable, Climb> {
     return $ClimbsTable(attachedDatabase, alias);
   }
 
+  static TypeConverter<DateTime, String> $converterdate =
+      const DateOnlyConverter();
   static TypeConverter<List<String>, String> $converterphotoFilenames =
       const PhotoFilenamesConverter();
 }
@@ -709,7 +705,9 @@ class Climb extends DataClass implements Insertable<Climb> {
   /// Deleting a peak takes its climbs with it.
   final int mountainId;
 
-  /// Required: a climb with no date is not a climb.
+  /// A calendar day, not a timestamp: 11 August stays 11 August whatever the
+  /// phone's timezone does. Stored as `YYYY-MM-DD` text by
+  /// [DateOnlyConverter]. Required, because a climb with no date is not a climb.
   final DateTime date;
   final String? companions;
   final String? notes;
@@ -729,7 +727,9 @@ class Climb extends DataClass implements Insertable<Climb> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['mountain_id'] = Variable<int>(mountainId);
-    map['date'] = Variable<DateTime>(date);
+    {
+      map['date'] = Variable<String>($ClimbsTable.$converterdate.toSql(date));
+    }
     if (!nullToAbsent || companions != null) {
       map['companions'] = Variable<String>(companions);
     }
@@ -873,7 +873,7 @@ class ClimbsCompanion extends UpdateCompanion<Climb> {
   static Insertable<Climb> custom({
     Expression<int>? id,
     Expression<int>? mountainId,
-    Expression<DateTime>? date,
+    Expression<String>? date,
     Expression<String>? companions,
     Expression<String>? notes,
     Expression<String>? photoFilenames,
@@ -916,7 +916,9 @@ class ClimbsCompanion extends UpdateCompanion<Climb> {
       map['mountain_id'] = Variable<int>(mountainId.value);
     }
     if (date.present) {
-      map['date'] = Variable<DateTime>(date.value);
+      map['date'] = Variable<String>(
+        $ClimbsTable.$converterdate.toSql(date.value),
+      );
     }
     if (companions.present) {
       map['companions'] = Variable<String>(companions.value);
@@ -1072,6 +1074,10 @@ class $AchievementsTable extends Achievements
 class Achievement extends DataClass implements Insertable<Achievement> {
   final int id;
   final AchievementType type;
+
+  /// A real timestamp, not a calendar day: the moment the badge fired. Left on
+  /// Drift's default epoch-second storage, because the instant is the point.
+  /// Contrast `climbs.date`, a day that must not move when the timezone does.
   final DateTime unlockedAt;
 
   /// Null for a milestone badge. Deleting a peak takes its badge with it.
@@ -1828,10 +1834,11 @@ class $$ClimbsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<DateTime> get date => $composableBuilder(
-    column: $table.date,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<DateTime, DateTime, String> get date =>
+      $composableBuilder(
+        column: $table.date,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<String> get companions => $composableBuilder(
     column: $table.companions,
@@ -1887,7 +1894,7 @@ class $$ClimbsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get date => $composableBuilder(
+  ColumnOrderings<String> get date => $composableBuilder(
     column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
@@ -1943,7 +1950,7 @@ class $$ClimbsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get date =>
+  GeneratedColumnWithTypeConverter<DateTime, String> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
   GeneratedColumn<String> get companions => $composableBuilder(

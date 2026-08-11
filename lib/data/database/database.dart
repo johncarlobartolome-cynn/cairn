@@ -1,5 +1,8 @@
 import 'package:drift/drift.dart';
 
+// Imported for database.g.dart, which instantiates both converters.
+import 'converters/date_only_converter.dart';
+import 'converters/photo_filenames_converter.dart';
 import 'daos/mountain_dao.dart';
 import 'seed/mountain_seed.dart';
 import 'tables/achievements.dart';
@@ -21,11 +24,33 @@ class AppDatabase extends _$AppDatabase {
   /// reason the data layer is testable at all.
   AppDatabase(super.e);
 
+  /// Bumped to 2 when `climbs.date` stopped being a timestamp and became a
+  /// calendar day. v1 never left this branch, but the doc's rule is that a table
+  /// change bumps the version and adds a step even pre-release, so it does.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // v1 stored climbs.date as Unix epoch seconds, which let the calendar
+        // day move with the device timezone. v2 stores the day itself as
+        // YYYY-MM-DD text, so the column has to be rewritten, not reinterpreted.
+        // alterTable recreates the table and its indexes for us, and foreign
+        // keys are still off at this point because beforeOpen runs afterwards.
+        await m.alterTable(
+          TableMigration(
+            climbs,
+            columnTransformer: {
+              climbs.date: const CustomExpression<String>(
+                "strftime('%Y-%m-%d', date, 'unixepoch')",
+              ),
+            },
+          ),
+        );
+      }
+    },
     beforeOpen: (details) async {
       // SQLite ignores foreign keys unless asked, per connection. Without this
       // the cascade deletes on climbs and achievements silently do nothing and
