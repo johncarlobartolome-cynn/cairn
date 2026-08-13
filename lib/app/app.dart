@@ -9,12 +9,21 @@ import 'theme/theme.dart';
 /// Light is the design's default and dark is a full translation of it, so both
 /// are wired and the phone's own setting picks.
 class CairnApp extends StatefulWidget {
-  const CairnApp({this.initialLocation = CairnRoute.peaks, super.key});
+  const CairnApp({
+    this.initialLocation = CairnRoute.peaks,
+    this.themeMode = ThemeMode.system,
+    super.key,
+  });
 
   /// Where the router opens. Production takes the default; a test opens a screen
   /// directly to prove a deep link lands, the same seam `AppDatabase` gives its
   /// executor.
   final String initialLocation;
+
+  /// Which of the two themes to draw. Production takes the default and follows
+  /// the phone; the screenshot harness names a theme so one run captures both,
+  /// and a test can assert a palette without touching device settings.
+  final ThemeMode themeMode;
 
   @override
   State<CairnApp> createState() => _CairnAppState();
@@ -40,6 +49,7 @@ class _CairnAppState extends State<CairnApp> {
       debugShowCheckedModeBanner: false,
       theme: CairnTheme.light,
       darkTheme: CairnTheme.dark,
+      themeMode: widget.themeMode,
       routerConfig: _router,
     );
   }

@@ -46,6 +46,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Drives the screenshot harness in tool/screenshots.sh: it runs the real app on
+  # a device through `flutter drive`. `flutter test` only walks test/, so nothing
+  # here is picked up by the unit suite.
+  integration_test:
+    sdk: flutter
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
