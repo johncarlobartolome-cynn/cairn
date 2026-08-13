@@ -3,6 +3,7 @@ import 'package:cairn/app/theme/tokens.dart';
 import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
+import 'package:cairn/data/database/tables/mountains.dart' show Difficulty;
 import 'package:cairn/shared/widgets/empty_state.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
 import 'package:cairn/shared/widgets/pill_nav.dart';
@@ -39,6 +40,73 @@ void main() {
       expect(find.byType(PeakCard), findsWidgets);
       expect(find.text(firstPeak.name), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('/ puts the peaks two to a row, all six on one screen', (
+      tester,
+    ) async {
+      await pumpApp(tester, db);
+
+      // Three rows of two fit inside a phone screen, which is the point of the
+      // grid: the climbed and unclimbed pattern reads without scrolling.
+      expect(find.byType(PeakCard), findsNWidgets(6));
+
+      final cards = find.byType(PeakCard);
+      final first = tester.getRect(cards.at(0));
+      final second = tester.getRect(cards.at(1));
+      final third = tester.getRect(cards.at(2));
+
+      // Two side by side: same top, the second one to the right of the first.
+      expect(second.top, first.top);
+      expect(second.left, greaterThan(first.right));
+      // Half the width each, so the pair spans the page inside its margins.
+      expect(second.width, moreOrLessEquals(first.width, epsilon: 0.5));
+      // The third card starts the next row, under the first.
+      expect(third.top, greaterThan(first.bottom));
+      expect(third.left, moreOrLessEquals(first.left, epsilon: 0.5));
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('a taller footer beside a shorter one does not overflow', (
+      tester,
+    ) async {
+      // Two peaks that sort ahead of the seeds, so they share the first row. The
+      // long name runs to two lines and carries a meta row, the short one has
+      // neither. That is the uneven pair E2 will create for real.
+      final dao = MountainDao(db);
+      await dao.add(
+        MountainsCompanion.insert(name: 'Apo', region: const Value('Davao')),
+      );
+      await dao.add(
+        MountainsCompanion.insert(
+          name: 'Bulusan Volcano Natural Park Summit',
+          region: const Value('Sorsogon'),
+          elevationM: const Value(1565),
+          difficulty: const Value(Difficulty.hard),
+        ),
+      );
+
+      await pumpApp(tester, db);
+
+      // A row that overflowed would report a FlutterError, and it lands here.
+      expect(tester.takeException(), isNull);
+
+      final cards = find.byType(PeakCard);
+      final short = tester.getRect(cards.at(0));
+      final tall = tester.getRect(cards.at(1));
+
+      expect(find.text('Apo'), findsOneWidget);
+      expect(find.text('Bulusan Volcano Natural Park Summit'), findsOneWidget);
+      // Proof the second card is the fuller one.
+      expect(find.text('1,565 m'), findsOneWidget);
+      expect(find.text('Hard'), findsOneWidget);
+      // The row takes its height from the taller card and both match it, so
+      // neither footer is clipped and the row still lines up.
+      expect(short.height, tall.height);
+      expect(short.top, tall.top);
 
       await disposeApp(tester);
     });

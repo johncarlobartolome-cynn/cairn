@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +13,11 @@ import '../../shared/widgets/peak_card.dart';
 import '../../shared/widgets/pill_nav.dart';
 import 'peak_facts.dart';
 
-/// The home screen: every peak in the library, one photo card each.
+/// Cards a row. Two, because the app's one job on this screen is showing a set of
+/// six at a glance.
+const int _columns = 2;
+
+/// The home screen: every peak in the library as a photo card, two to a row.
 ///
 /// The rows are real, straight off the database, and the climbed treatment reads
 /// the ids that actually have a climb against them. With an empty log every card
@@ -62,6 +68,14 @@ class _PeaksList extends ConsumerWidget {
     final climbed =
         ref.watch(climbedMountainIdsProvider).value ?? const <int>{};
 
+    // Two peaks a row. Six of them then take three rows and land inside one
+    // screen, so the climbed and unclimbed pattern reads as a set without
+    // scrolling, which is the job the design gives this list. The reference mock
+    // runs the same card full width, but it browses one trail at a time and this
+    // is a checklist of six. Same card, different container: the card's 4:3 stays
+    // exactly as it is.
+    final rows = (peaks.length / _columns).ceil();
+
     return ListView.separated(
       padding: EdgeInsets.fromLTRB(
         CairnSpace.page,
@@ -70,21 +84,72 @@ class _PeaksList extends ConsumerWidget {
         // Never a literal. The nav publishes what it costs a scroll view.
         PillNav.clearanceFor(context),
       ),
-      // One extra for the heading, which scrolls away with the list.
-      itemCount: peaks.length + 1,
+      // One extra for the heading, which scrolls away with the rows.
+      itemCount: rows + 1,
       separatorBuilder: (context, index) =>
           const SizedBox(height: CairnSpace.cardGap),
       itemBuilder: (context, index) {
         if (index == 0) return _Heading(count: peaks.length);
 
-        final peak = peaks[index - 1];
-        return PeakCard(
-          name: peak.name,
-          climbed: climbed.contains(peak.id),
-          meta: [peak.region, peak.elevationLabel, peak.difficultyLabel],
-          onTap: () => context.push(CairnRoute.mountain(peak.id)),
+        final start = (index - 1) * _columns;
+        return _PeakRow(
+          peaks: peaks.sublist(start, min(start + _columns, peaks.length)),
+          climbedIds: climbed,
         );
       },
+    );
+  }
+}
+
+/// One row of the grid, at most [_columns] cards wide.
+///
+/// A row takes its height from its tallest card and both cards stretch to match,
+/// rather than every row being handed one computed extent. Footers are not the
+/// same height: a name can run to two lines, a meta row can be there or not, and
+/// after E2 it can wrap. Any of those against a fixed extent is a clipped name or
+/// an overflow, and neither can happen to a row that measures its own content.
+class _PeakRow extends StatelessWidget {
+  const _PeakRow({required this.peaks, required this.climbedIds});
+
+  final List<Mountain> peaks;
+  final Set<int> climbedIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var column = 0; column < _columns; column++) ...[
+            if (column > 0) const SizedBox(width: CairnSpace.cardGap),
+            Expanded(
+              // An odd count leaves a hole in the last row. The hole keeps its
+              // half of the width, so a lone card stays card-sized instead of
+              // stretching across and reading as a different kind of thing.
+              child: column < peaks.length
+                  ? _Card(peak: peaks[column], climbedIds: climbedIds)
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Card extends StatelessWidget {
+  const _Card({required this.peak, required this.climbedIds});
+
+  final Mountain peak;
+  final Set<int> climbedIds;
+
+  @override
+  Widget build(BuildContext context) {
+    return PeakCard(
+      name: peak.name,
+      climbed: climbedIds.contains(peak.id),
+      meta: [peak.region, peak.elevationLabel, peak.difficultyLabel],
+      onTap: () => context.push(CairnRoute.mountain(peak.id)),
     );
   }
 }
