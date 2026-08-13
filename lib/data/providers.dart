@@ -6,6 +6,14 @@ import 'database/daos/climb_dao.dart';
 import 'database/daos/mountain_dao.dart';
 import 'database/database.dart';
 
+/// The three row types, re-exported.
+///
+/// The layer rule says the UI never imports `database.dart`, and a widget cannot
+/// watch `StreamProvider<List<Mountain>>` without naming `Mountain`. So the type
+/// travels with the provider that hands it over, and `providers.dart` stays the
+/// one door into the data layer.
+export 'database/database.dart' show Achievement, Climb, Mountain;
+
 /// The one database instance for the app.
 ///
 /// `driftDatabase` opens `cairn.sqlite` in the app documents directory. Tests
@@ -37,6 +45,22 @@ final mountainsProvider = StreamProvider<List<Mountain>>(
 
 final mountainCountProvider = StreamProvider<int>(
   (ref) => ref.watch(mountainDaoProvider).watchCount(),
+);
+
+/// One peak, or null when nothing in the library has that id.
+///
+/// Auto-disposed, unlike the list providers: a detail screen is the only watcher
+/// and its query should close when the screen is gone rather than stay open for
+/// an id nobody is looking at. The null is a real answer, not an error, so a bad
+/// id in a link becomes a not-found screen instead of an exception.
+final mountainByIdProvider = StreamProvider.autoDispose.family<Mountain?, int>(
+  (ref, id) => ref.watch(mountainDaoProvider).watchById(id),
+);
+
+/// One climb, or null when nothing in the log has that id. Auto-disposed for the
+/// same reason as [mountainByIdProvider].
+final climbByIdProvider = StreamProvider.autoDispose.family<Climb?, int>(
+  (ref, id) => ref.watch(climbDaoProvider).watchById(id),
 );
 
 final climbsProvider = StreamProvider<List<Climb>>(
