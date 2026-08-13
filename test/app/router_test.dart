@@ -4,6 +4,7 @@ import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
 import 'package:cairn/data/database/tables/mountains.dart' show Difficulty;
+import 'package:cairn/shared/widgets/cairn_back_button.dart';
 import 'package:cairn/shared/widgets/empty_state.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
 import 'package:cairn/shared/widgets/pill_nav.dart';
@@ -11,6 +12,7 @@ import 'package:cairn/shared/widgets/stat_tile.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import '../helpers/pump_app.dart';
 import '../helpers/test_database.dart';
@@ -251,6 +253,129 @@ void main() {
       expect(find.byType(StatTile), findsNWidgets(4));
       // The shell is behind the pushed page, so its nav is off screen.
       expect(find.byType(PillNav), findsNothing);
+
+      await disposeApp(tester);
+    });
+  });
+
+  group('a detail screen always has a way out', () {
+    /// Pushes [location] over whatever the shell is showing.
+    ///
+    /// Tapping a card is the real route into peak detail, but nothing in the UI
+    /// links to a climb until E3. Pushing gives that screen the same history a
+    /// tap would, and pushing from the badges branch is what tells a pop apart
+    /// from the fallback: a pop returns to badges, the fallback always lands on
+    /// the peaks list.
+    Future<void> pushOverShell(WidgetTester tester, String location) async {
+      GoRouter.of(tester.element(find.byType(PillNav))).push(location);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('peak detail reached by a tap pops back to the list', (
+      tester,
+    ) async {
+      await pumpApp(tester, db);
+      await tester.tap(find.byType(PeakCard).first);
+      await tester.pumpAndSettle();
+      expect(find.byType(CairnBackButton), findsOneWidget);
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.byType(PillNav), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('peak detail opened cold goes to the peaks list', (
+      tester,
+    ) async {
+      await pumpApp(tester, db, location: CairnRoute.mountain(firstPeak.id));
+
+      // The defect: with no history the bar drew nothing, so the found branch
+      // had no exit at all.
+      expect(find.byType(CairnBackButton), findsOneWidget);
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.byType(PillNav), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('climb detail pushed over the shell pops back to badges', (
+      tester,
+    ) async {
+      final climbId = await ClimbDao(db).add(
+        ClimbsCompanion.insert(
+          mountainId: firstPeak.id,
+          date: DateTime.utc(2026, 8, 11),
+        ),
+      );
+
+      await pumpApp(tester, db, location: CairnRoute.badges);
+      await pushOverShell(tester, CairnRoute.climb(climbId));
+      expect(find.text('11 August 2026'), findsOneWidget);
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      // Badges, not the peaks list: the control popped rather than reaching for
+      // its fallback.
+      expect(find.text('No badges yet'), findsOneWidget);
+      expect(find.byType(PillNav), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('climb detail opened cold goes to the peaks list', (
+      tester,
+    ) async {
+      final climbId = await ClimbDao(db).add(
+        ClimbsCompanion.insert(
+          mountainId: firstPeak.id,
+          date: DateTime.utc(2026, 8, 11),
+        ),
+      );
+
+      await pumpApp(tester, db, location: CairnRoute.climb(climbId));
+      expect(find.byType(CairnBackButton), findsOneWidget);
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.byType(PillNav), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('a detail that misses carries the control too', (tester) async {
+      await pumpApp(tester, db, location: '/mountain/999');
+      expect(find.byType(CairnBackButton), findsOneWidget);
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('6 peaks'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('peak detail pushed from badges pops back to badges', (
+      tester,
+    ) async {
+      await pumpApp(tester, db, location: CairnRoute.badges);
+      await pushOverShell(tester, CairnRoute.mountain(firstPeak.id));
+      expect(find.byType(StatTile), findsNWidgets(4));
+
+      await tester.tap(find.byType(CairnBackButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No badges yet'), findsOneWidget);
 
       await disposeApp(tester);
     });

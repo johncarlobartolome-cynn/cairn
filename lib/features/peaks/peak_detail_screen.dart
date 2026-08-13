@@ -6,6 +6,7 @@ import '../../app/router.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
+import '../../shared/widgets/cairn_back_button.dart';
 import '../../shared/widgets/empty_state_page.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
@@ -72,9 +73,10 @@ class _Detail extends StatelessWidget {
     final text = context.cairnText;
 
     return Scaffold(
-      // Bare on purpose: over the cream ground this is just the back arrow. E2
-      // replaces it with the photo hero and the frosted sheet over it.
-      appBar: AppBar(),
+      // Bare but for the way out: over the cream ground the band carries nothing
+      // else. E2 replaces it with the photo hero and the frosted sheet over it,
+      // and takes the same control along.
+      appBar: AppBar(leading: const CairnBackButton()),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(

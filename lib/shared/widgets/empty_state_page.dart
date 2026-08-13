@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
+import 'cairn_back_button.dart';
 import 'empty_state.dart';
 
 /// A whole page whose only content is one [EmptyState].
@@ -8,9 +9,10 @@ import 'empty_state.dart';
 /// The three misses in the app look the same, so they share this: a peak id with
 /// no peak, a climb id with no climb, and a location the router cannot match.
 ///
-/// The bar carries the back arrow when there is something to go back to. Arrive
-/// here from a cold deep link and there is nothing to pop, which is why the
-/// caller can hand the card an action instead.
+/// The bar carries a [CairnBackButton], which works whether or not anything
+/// pushed this page. The card's own action still names where it goes, since a
+/// visitor who reached a miss cold is better served by a labelled way to the
+/// peaks list than by an arrow.
 class EmptyStatePage extends StatelessWidget {
   const EmptyStatePage({
     required this.icon,
@@ -28,7 +30,7 @@ class EmptyStatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(leading: const CairnBackButton()),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
