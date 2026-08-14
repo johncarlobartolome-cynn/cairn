@@ -6,15 +6,17 @@ import 'package:cairn/data/database/database.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// v1 stored `climbs.date` as Unix epoch seconds. v2 stores the calendar day as
-/// `YYYY-MM-DD` text, so the migration has to rewrite the column rather than
-/// reinterpret it.
+/// v1 stored `climbs.date` as Unix epoch seconds: the instant of a `DateTime`
+/// the app built in local time. v2 stores the calendar day as `YYYY-MM-DD` text,
+/// so the migration has to rewrite the column, and it has to read the old
+/// instant in the zone that wrote it. Read as UTC, every hike logged before the
+/// device's offset lands on the wrong day.
 ///
 /// The DDL below is the real v1 schema, dumped from a v1 database built by this
 /// app before the change, not a hand-written approximation. `setup` lays it down
 /// and stamps `user_version = 1`, so opening [AppDatabase] over the file takes
 /// the upgrade path exactly as a phone with the old build would.
-const _v1Schema = [
+const _v1Ddl = [
   'CREATE TABLE IF NOT EXISTS "mountains" ("id" INTEGER NOT NULL PRIMARY KEY '
       'AUTOINCREMENT, "name" TEXT NOT NULL UNIQUE, "region" TEXT NULL, '
       '"elevation_m" INTEGER NULL, "difficulty" TEXT NULL, "jump_off_point" '
@@ -33,15 +35,42 @@ const _v1Schema = [
   'CREATE UNIQUE INDEX ux_achievements_milestone ON achievements (type) '
       'WHERE mountain_id IS NULL;',
   "INSERT INTO mountains (name) VALUES ('Mt. Pulag'), ('Mt. Ulap');",
-  // 00:30, 15:30 and 23:30 UTC on 11 August. Spread across the day on purpose:
-  // under epoch storage the outer two are the ones that slide onto a
-  // neighbouring day once a timezone is applied.
-  'INSERT INTO climbs (mountain_id, date, notes) VALUES '
-      "(1, strftime('%s','2026-08-11 00:30:00'), 'early'), "
-      "(1, strftime('%s','2026-08-11 15:30:00'), 'midday'), "
-      "(2, strftime('%s','2026-08-11 23:30:00'), 'late');",
+];
+
+/// The v1 climb rows, built the way v1 built them: a local `DateTime`, whose
+/// instant Drift wrote as epoch seconds. Deriving the fixture from a local time
+/// is the whole point. A UTC-parsed literal would share its frame with a
+/// UTC-reading migration and agree with it by construction, which is how the
+/// wrong conversion passed a test in the first place.
+///
+/// All three name 11 August on the wall clock, so all three have to read back as
+/// 11 August, in every zone. The spread is deliberate: 00:30 is the row that
+/// slips back a day when the instant is read as UTC east of Greenwich, 23:30 is
+/// the one that slips forward west of it, and 12:00 goes wrong past a 12-hour
+/// offset either way.
+final _v1Climbs = [
+  (mountainId: 1, note: 'early', writtenAt: DateTime(2026, 8, 11, 0, 30)),
+  (mountainId: 1, note: 'midday', writtenAt: DateTime(2026, 8, 11, 12)),
+  (mountainId: 2, note: 'late', writtenAt: DateTime(2026, 8, 11, 23, 30)),
+];
+
+String _v1ClimbInsert(({int mountainId, String note, DateTime writtenAt}) c) {
+  final epochSeconds = c.writtenAt.millisecondsSinceEpoch ~/ 1000;
+  return 'INSERT INTO climbs (mountain_id, date, notes) '
+      "VALUES (${c.mountainId}, $epochSeconds, '${c.note}');";
+}
+
+/// The v1 file in order: schema, peaks, climbs, then the stamp that sends the
+/// next open down the upgrade path.
+final _v1Database = [
+  ..._v1Ddl,
+  ..._v1Climbs.map(_v1ClimbInsert),
   'PRAGMA user_version = 1;',
 ];
+
+/// The day a row was logged on, as the converter hands days back: UTC midnight.
+DateTime _loggedDay(DateTime writtenAt) =>
+    DateTime.utc(writtenAt.year, writtenAt.month, writtenAt.day);
 
 void main() {
   late Directory dir;
@@ -53,7 +82,7 @@ void main() {
       NativeDatabase(
         File('${dir.path}/cairn.sqlite'),
         setup: (rawDb) {
-          for (final statement in _v1Schema) {
+          for (final statement in _v1Database) {
             rawDb.execute(statement);
           }
         },
@@ -72,12 +101,22 @@ void main() {
     expect(row.read<int>('user_version'), 2);
   });
 
-  test('every v1 epoch date becomes the calendar day it fell on', () async {
+  test('every v1 instant becomes the day it was locally', () async {
     final climbs = await ClimbDao(db).watchAll().first;
 
-    expect(climbs, hasLength(3));
-    for (final climb in climbs) {
-      expect(climb.date, DateTime.utc(2026, 8, 11));
+    expect(climbs, hasLength(_v1Climbs.length));
+    for (final row in _v1Climbs) {
+      final migrated = climbs.firstWhere((c) => c.notes == row.note);
+
+      expect(
+        migrated.date,
+        _loggedDay(row.writtenAt),
+        reason:
+            'the ${row.note} climb was logged at ${row.writtenAt} local, so it '
+            'belongs to ${_loggedDay(row.writtenAt)} whatever the zone. Reading '
+            'its instant as UTC gives '
+            '${row.writtenAt.toUtc().toIso8601String()}, a different day.',
+      );
     }
   });
 
@@ -86,15 +125,26 @@ void main() {
         .customSelect('SELECT date, typeof(date) AS kind FROM climbs')
         .get();
 
+    // Every fixture row is local 11 August, so one expected string covers all
+    // three in any zone.
     for (final row in rows) {
       expect(row.read<String>('date'), '2026-08-11');
       expect(row.read<String>('kind'), 'text');
     }
   });
 
-  test('recreating the table keeps its rows, indexes and peaks', () async {
-    expect(await MountainDao(db).getAll(), hasLength(2));
+  test('the recreated table redeclares date and keeps its indexes', () async {
+    final columns = await db.customSelect('PRAGMA table_info(climbs)').get();
+    final date = columns.singleWhere((c) => c.read<String>('name') == 'date');
 
+    // v1 declared this column INTEGER, and nothing but the rewrite turns it into
+    // TEXT. Asserting the declaration rather than an index name is what stops
+    // this test passing on the fixture alone with the migration step skipped.
+    expect(date.read<String>('type'), 'TEXT');
+
+    // Recreating a table in SQLite takes its indexes down with it. Drift is
+    // meant to put them back from the current schema, which is the part of
+    // alterTable this checks.
     final indexes = await db
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'index' "
@@ -106,6 +156,10 @@ void main() {
       indexes.map((r) => r.read<String>('name')),
       containsAll(['idx_climbs_mountain_id', 'idx_climbs_date']),
     );
+
+    // An upgrade is not a create, so the seed must leave the two peaks the
+    // fixture already holds alone.
+    expect(await MountainDao(db).getAll(), hasLength(2));
   });
 
   test('the upgraded database still enforces foreign keys', () async {
