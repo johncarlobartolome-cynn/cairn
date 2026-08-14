@@ -18,6 +18,7 @@ Future<void> pumpApp(
   WidgetTester tester,
   AppDatabase db, {
   String location = '/',
+  ThemeMode themeMode = ThemeMode.system,
 }) async {
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 3;
@@ -26,7 +27,7 @@ Future<void> pumpApp(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [databaseProvider.overrideWithValue(db)],
-      child: CairnApp(initialLocation: location),
+      child: CairnApp(initialLocation: location, themeMode: themeMode),
     ),
   );
   // First frame, then the frame carrying the database's first stream event.
