@@ -6,6 +6,7 @@ import '../../app/router.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
+import '../../shared/widgets/cairn_back_button.dart';
 import '../../shared/widgets/empty_state_page.dart';
 import '../../shared/widgets/section_label.dart';
 import 'climb_facts.dart';
@@ -75,7 +76,7 @@ class _Detail extends StatelessWidget {
     final notes = climb.notes?.trim();
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(leading: const CairnBackButton()),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
