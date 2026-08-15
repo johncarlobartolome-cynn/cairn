@@ -22,6 +22,16 @@ extension PeakFacts on Mountain {
     return name == null ? null : name[0].toUpperCase() + name.substring(1);
   }
 
+  /// Where the climb starts, e.g. `DENR Ambangeg Ranger Station, Bokod`.
+  ///
+  /// Trimmed, and a blank counts as missing. A user-added peak can be saved with
+  /// the field left empty, and the detail screen drops the whole section on a
+  /// null rather than drawing a label over nothing.
+  String? get jumpOffLabel {
+    final point = jumpOffPoint?.trim();
+    return point == null || point.isEmpty ? null : point;
+  }
+
   /// e.g. `8 h`, or `3.5 h` for a half hour. The column is fractional on purpose.
   String? get hoursLabel {
     final hours = estimatedHours;
