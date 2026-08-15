@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Captures one PNG of every route in both themes on a running Android emulator.
+# Captures one PNG of every route, plus the mark-climbed sheet, in both themes
+# on a running Android emulator.
 #
 #   tool/screenshots.sh
 #
@@ -22,11 +23,11 @@ DRIVER="test_driver/integration_test.dart"
 TARGET="integration_test/screenshot_test.dart"
 
 # integration_test/screenshot_test.dart is the source of truth for these names.
-# Listed again here so a rename fails the run instead of quietly shipping seven
-# fresh images and one stale eighth.
-EXPECTED="peaks-light peak-detail-light climb-detail-light badges-light
-peaks-dark peak-detail-dark climb-detail-dark badges-dark"
-EXPECTED_COUNT=8
+# Listed again here so a rename fails the run instead of quietly shipping nine
+# fresh images and one stale tenth.
+EXPECTED="peaks-light peak-detail-light mark-climbed-light climb-detail-light badges-light
+peaks-dark peak-detail-dark mark-climbed-dark climb-detail-dark badges-dark"
+EXPECTED_COUNT=10
 
 die() {
   echo "" >&2

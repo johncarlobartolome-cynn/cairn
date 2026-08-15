@@ -16,11 +16,36 @@ import 'package:integration_test/integration_test.dart';
 
 /// One image: a route, a theme, and the filename the driver writes.
 class _Shot {
-  const _Shot(this.name, this.location, this.themeMode);
+  const _Shot(this.name, this.location, this.themeMode, {this.prepare});
 
   final String name;
   final String location;
   final ThemeMode themeMode;
+
+  /// Optional taps and typing between the route settling and the shutter, for
+  /// a shot of something you have to open first.
+  final Future<void> Function(WidgetTester tester)? prepare;
+}
+
+/// Opens the mark-climbed sheet over peak detail and fills it in.
+///
+/// Nothing is saved. The harness runs over the app's real database and a shot
+/// is not a reason to write a row into it.
+Future<void> _openFilledSheet(WidgetTester tester) async {
+  await tester.tap(find.text('Mark climbed'));
+  await tester.pumpAndSettle();
+
+  final Finder fields = find.byType(TextField);
+  await tester.enterText(fields.first, 'Mara and Enzo');
+  await tester.enterText(
+    fields.last,
+    'Left at three in the morning and caught the sunrise from the summit.',
+  );
+
+  // The device's own keyboard answers the focus, and it would cover the half of
+  // the sheet the shot is for.
+  FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle();
 }
 
 /// How long a route gets to leave its loading spinner behind.
@@ -72,6 +97,12 @@ void main() {
           theme.value,
         ),
         _Shot(
+          'mark-climbed-${theme.key}',
+          CairnRoute.mountain(peakId),
+          theme.value,
+          prepare: _openFilledSheet,
+        ),
+        _Shot(
           'climb-detail-${theme.key}',
           CairnRoute.climb(climbId),
           theme.value,
@@ -95,6 +126,7 @@ void main() {
       );
 
       await _waitUntilRendered(tester, shot);
+      await shot.prepare?.call(tester);
       await binding.takeScreenshot(shot.name);
     }
 
