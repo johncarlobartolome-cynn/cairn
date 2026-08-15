@@ -114,7 +114,7 @@ void main() {
     expect(pulag.region, 'Benguet');
     expect(pulag.elevationM, 2922);
     expect(pulag.difficulty, Difficulty.easy);
-    expect(pulag.jumpOffPoint, 'DENR Ambangeg Ranger Station, Bokod');
+    expect(pulag.jumpOffPoint, 'DENR Ambangeg Ranger Station, Bokod.');
     expect(pulag.estimatedHours, 4);
 
     // Not one lucky row: every name-only peak in the fixture fills.
@@ -143,8 +143,8 @@ void main() {
     expect(kabunian.difficulty, Difficulty.moderate);
     expect(
       kabunian.jumpOffPoint,
-      'Brgy. Poblacion, Bakun (register at Bakun National High School or '
-      'the Municipal Tourism Council)',
+      'Brgy. Poblacion, Bakun. Register at Bakun National High School or '
+      'the Municipal Tourism Council.',
     );
     expect(kabunian.estimatedHours, 4);
   });

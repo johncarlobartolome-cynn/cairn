@@ -35,11 +35,17 @@ typedef SeededPeak = ({
 /// 7-9 is Guiting-Guiting territory. A scale relative to the list would
 /// re-grade every existing peak each time a user adds one.
 ///
-/// Every string here reaches a screen sooner or later, so none of them carries
-/// an em dash. That is a standing rule for anything the app shows, and the
-/// seed test enforces it against the rows as they land in the database rather
-/// than against this list, so a column added later is covered without anyone
-/// remembering to.
+/// Every string here reaches a screen sooner or later, so all of them are
+/// written for the spoken voice: the way someone would say it out loud, in
+/// plain sentences. No em dashes, no parenthetical asides, no slash standing in
+/// for "or". A jump-off point is an address and then, if there is more to say,
+/// a second sentence saying it. That rule covers every string this app shows,
+/// not only these six.
+///
+/// The characters are testable and the phrasing is not, so the seed test bans
+/// the three characters and leaves the rest to review. It runs against the rows
+/// as they land in the database rather than against this list, so a text column
+/// a later ticket adds is covered without anyone remembering to.
 ///
 /// `region` is the province alone. It held province and municipality at first,
 /// which made it the one value too long for its stat tile, and the tile
@@ -56,8 +62,8 @@ const seededPeaks = <SeededPeak>[
     elevationM: 1789,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
-        'Brgy. Poblacion, Bakun (register at Bakun National High School or '
-        'the Municipal Tourism Council)',
+        'Brgy. Poblacion, Bakun. Register at Bakun National High School or '
+        'the Municipal Tourism Council.',
     estimatedHours: 4,
   ),
   (
@@ -72,7 +78,7 @@ const seededPeaks = <SeededPeak>[
     // route, not a mountain, and one column cannot hold that. Tracked as an
     // open question against a future `routes` table.
     difficulty: Difficulty.easy,
-    jumpOffPoint: 'DENR Ambangeg Ranger Station, Bokod',
+    jumpOffPoint: 'DENR Ambangeg Ranger Station, Bokod.',
     estimatedHours: 4,
   ),
   (
@@ -81,8 +87,8 @@ const seededPeaks = <SeededPeak>[
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
-        'Brgy. Ampucao, Itogon (register at the Barangay Hall or the '
-        'Elementary School gym)',
+        'Brgy. Ampucao, Itogon. Register at the Barangay Hall or the '
+        'Elementary School gym.',
     estimatedHours: 3,
   ),
   (
@@ -93,8 +99,8 @@ const seededPeaks = <SeededPeak>[
     // Renamed from Evercrest, and access here has changed more than once.
     // Worth re-checking before a real trip.
     jumpOffPoint:
-        'KC Hillcrest (was Evercrest Golf Course), Brgy. Patutong Malaki, '
-        'Nasugbu',
+        'KC Hillcrest, Brgy. Patutong Malaki, Nasugbu. Formerly Evercrest '
+        'Golf Course.',
     estimatedHours: 3,
   ),
   (
@@ -102,7 +108,7 @@ const seededPeaks = <SeededPeak>[
     region: 'Rizal',
     elevationM: 739,
     difficulty: Difficulty.moderate,
-    jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay',
+    jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay.',
     estimatedHours: 3,
   ),
   (
@@ -113,7 +119,7 @@ const seededPeaks = <SeededPeak>[
     // every figure comes from 2025-26 blogs that may be copying each other.
     elevationM: 573,
     difficulty: Difficulty.easy,
-    jumpOffPoint: 'Sitio Maporac, Brgy. New San Juan, Cabangan',
+    jumpOffPoint: 'Sitio Maporac, Brgy. New San Juan, Cabangan.',
     estimatedHours: 2,
   ),
 ];

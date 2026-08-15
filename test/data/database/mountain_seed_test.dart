@@ -28,15 +28,15 @@ const _expected = <String, _Facts>{
     elevationM: 1789,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
-        'Brgy. Poblacion, Bakun (register at Bakun National High School or '
-        'the Municipal Tourism Council)',
+        'Brgy. Poblacion, Bakun. Register at Bakun National High School or '
+        'the Municipal Tourism Council.',
     estimatedHours: 4,
   ),
   'Mt. Pulag': (
     region: 'Benguet',
     elevationM: 2922,
     difficulty: Difficulty.easy,
-    jumpOffPoint: 'DENR Ambangeg Ranger Station, Bokod',
+    jumpOffPoint: 'DENR Ambangeg Ranger Station, Bokod.',
     estimatedHours: 4,
   ),
   'Mt. Ulap': (
@@ -44,8 +44,8 @@ const _expected = <String, _Facts>{
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
-        'Brgy. Ampucao, Itogon (register at the Barangay Hall or the '
-        'Elementary School gym)',
+        'Brgy. Ampucao, Itogon. Register at the Barangay Hall or the '
+        'Elementary School gym.',
     estimatedHours: 3,
   ),
   'Mt. Batulao': (
@@ -53,22 +53,22 @@ const _expected = <String, _Facts>{
     elevationM: 811,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
-        'KC Hillcrest (was Evercrest Golf Course), Brgy. Patutong Malaki, '
-        'Nasugbu',
+        'KC Hillcrest, Brgy. Patutong Malaki, Nasugbu. Formerly Evercrest '
+        'Golf Course.',
     estimatedHours: 3,
   ),
   'Mt. Daraitan': (
     region: 'Rizal',
     elevationM: 739,
     difficulty: Difficulty.moderate,
-    jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay',
+    jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay.',
     estimatedHours: 3,
   ),
   'Mt. Mariglem': (
     region: 'Zambales',
     elevationM: 573,
     difficulty: Difficulty.easy,
-    jumpOffPoint: 'Sitio Maporac, Brgy. New San Juan, Cabangan',
+    jumpOffPoint: 'Sitio Maporac, Brgy. New San Juan, Cabangan.',
     estimatedHours: 2,
   ),
 };
@@ -118,29 +118,44 @@ void main() {
     });
   });
 
-  test('no seeded value carries an em dash', () async {
-    // A standing rule for everything this app puts on a screen: an em dash
-    // reads as machine-written. Two jump-off points arrived with one, straight
-    // out of the research note, and they turn user-facing the moment peak
-    // detail grows its jump-off section.
+  test('no seeded value uses written-only punctuation', () async {
+    // The rule for every string this app shows: write it for the spoken voice,
+    // the way someone would say it out loud. Both jump-off points that needed
+    // rewriting proved it twice over. They arrived with an em dash, were
+    // rewritten with a parenthetical aside, and that still read like a
+    // footnote rather than speech. An address and then a sentence is what a
+    // person actually says.
+    //
+    // Only the characters are testable. "Reads like speech" is a review
+    // judgement and nothing here pretends to check it, so this bans the three
+    // marks that never survive being read aloud and leaves the phrasing to a
+    // human. A test that claimed more than it checks would be worse than no
+    // test, because it would be trusted.
     //
     // Asserted over `SELECT *` rather than over the six records, so a text
     // column a later ticket adds is covered without anyone remembering this
     // test exists.
-    const emDash = '—';
+    const banned = <String, String>{
+      '—': 'an em dash, which reads as machine-written',
+      '(': 'a parenthesis, which turns the aside into a footnote',
+      ')': 'a parenthesis, which turns the aside into a footnote',
+      '/': 'a slash standing in for the word "or"',
+    };
 
     for (final row in await db.customSelect('SELECT * FROM mountains').get()) {
       row.data.forEach((column, value) {
         if (value is! String) return;
 
-        expect(
-          value,
-          isNot(contains(emDash)),
-          reason:
-              'mountains.$column holds an em dash: "$value". Rewrite it with '
-              'commas, parentheses or "or". The rule covers every string the '
-              'app shows.',
-        );
+        banned.forEach((mark, why) {
+          expect(
+            value,
+            isNot(contains(mark)),
+            reason:
+                'mountains.$column holds $why: "$value". Say it in plain '
+                'sentences instead. The rule covers every string the app '
+                'shows, not only the seeded six.',
+          );
+        });
       });
     }
   });
