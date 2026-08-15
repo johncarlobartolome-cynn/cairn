@@ -37,6 +37,16 @@ class AppDatabase extends _$AppDatabase {
         // v1 stored climbs.date as Unix epoch seconds, which let the calendar
         // day move with the device timezone. v2 stores the day itself as
         // YYYY-MM-DD text, so the column has to be rewritten, not reinterpreted.
+        //
+        // The number v1 wrote is the instant of a DateTime the app built in
+        // local time. 'unixepoch' turns those seconds back into a timestamp, but
+        // reads it in UTC, and that is the wrong frame: 00:30 on 11 August in
+        // Manila is 16:30 on the 10th in UTC, so the day would move back one.
+        // 'localtime' puts the instant into the zone it came from, where the
+        // number names the day the hiker meant. v1 kept no offset next to the
+        // instant, so the device's current zone is the only record of that frame
+        // there is.
+        //
         // alterTable recreates the table and its indexes for us, and foreign
         // keys are still off at this point because beforeOpen runs afterwards.
         await m.alterTable(
@@ -44,7 +54,7 @@ class AppDatabase extends _$AppDatabase {
             climbs,
             columnTransformer: {
               climbs.date: const CustomExpression<String>(
-                "strftime('%Y-%m-%d', date, 'unixepoch')",
+                "strftime('%Y-%m-%d', date, 'unixepoch', 'localtime')",
               ),
             },
           ),
