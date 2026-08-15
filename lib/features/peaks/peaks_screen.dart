@@ -20,12 +20,27 @@ const int _columns = 2;
 /// The home screen: every peak in the library as a photo card, two to a row.
 ///
 /// The rows are real, straight off the database, and the climbed treatment reads
-/// the ids that actually have a climb against them. With an empty log every card
-/// draws unclimbed, which is the truth rather than a placeholder.
+/// the ids that actually have a climb against them.
 ///
-/// The progress strip and the All / To climb / Climbed pills from the design spec
-/// are not here yet. Neither can say anything until climbs exist, so they land
-/// with E3 and E4.
+/// The library and the climbed set are waited for together, and no card is
+/// built until both have answered. The list used to take whatever the climbed
+/// set had and fall back to empty, which let a frame draw every peak unclimbed
+/// before that second query came back. T8's review logged it as finding N8 and
+/// left it there, since at zero climbs nothing could show.
+///
+/// T16 went looking for it on a device with four climbs in the file: force-stop,
+/// cold launch, screen recording, then every painted frame measured for the
+/// saturation of a climbed card against its unclimbed neighbour. It never
+/// flashed, with the old code as well as this one. Both queries answer inside
+/// the same frame, so the first list ever painted was already right.
+///
+/// The gate stays anyway. All the recording proves is that one scheduling order
+/// won on one device on one day, and the thing at stake is the app appearing to
+/// have lost a climb. This makes it a rule instead: cards paint once the app
+/// knows what to say about them, and until then the screen says it is reading.
+///
+/// The progress strip and the All / To climb / Climbed pills from the design
+/// spec are not here yet. Both are E4, with the progress view.
 ///
 /// It has no [Scaffold] and no [SafeArea] of its own: the nav shell owns both, so
 /// the floating nav and this list read the same bottom inset.
@@ -35,39 +50,40 @@ class PeaksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final peaks = ref.watch(mountainsProvider);
+    // A peak counts as climbed once it has one climb against it.
+    final climbed = ref.watch(climbedMountainIdsProvider);
 
-    return switch (peaks) {
-      AsyncValue(hasError: true) => const _PeaksMessage(
+    return switch ((peaks, climbed)) {
+      (AsyncValue(hasError: true), _) ||
+      (_, AsyncValue(hasError: true)) => const _PeaksMessage(
         icon: Icons.cloud_off_rounded,
         title: 'Could not read the library',
         message: 'Something went wrong opening your peaks.',
       ),
-      AsyncValue(hasValue: true, value: final rows?) when rows.isEmpty =>
+      // An empty library needs no climbed set to be sure of itself.
+      (AsyncValue(hasValue: true, value: final rows?), _) when rows.isEmpty =>
         const _PeaksMessage(
           icon: Icons.landscape_outlined,
           title: 'No peaks yet',
           message: 'Your library is empty.',
         ),
-      AsyncValue(hasValue: true, value: final rows?) => _PeaksList(peaks: rows),
+      (
+        AsyncValue(hasValue: true, value: final rows?),
+        AsyncValue(hasValue: true, value: final ids?),
+      ) => _PeaksList(peaks: rows, climbedIds: ids),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
 }
 
-class _PeaksList extends ConsumerWidget {
-  const _PeaksList({required this.peaks});
+class _PeaksList extends StatelessWidget {
+  const _PeaksList({required this.peaks, required this.climbedIds});
 
   final List<Mountain> peaks;
+  final Set<int> climbedIds;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // A peak counts as climbed once it has one climb against it. Taking the
-    // value and defaulting to empty keeps the cards on screen while this second
-    // stream opens, instead of holding the whole list back for a set that is
-    // usually there already.
-    final climbed =
-        ref.watch(climbedMountainIdsProvider).value ?? const <int>{};
-
+  Widget build(BuildContext context) {
     // Two peaks a row. Six of them then take three rows and land inside one
     // screen, so the climbed and unclimbed pattern reads as a set without
     // scrolling, which is the job the design gives this list. The reference mock
@@ -94,7 +110,7 @@ class _PeaksList extends ConsumerWidget {
         final start = (index - 1) * _columns;
         return _PeakRow(
           peaks: peaks.sublist(start, min(start + _columns, peaks.length)),
-          climbedIds: climbed,
+          climbedIds: climbedIds,
         );
       },
     );

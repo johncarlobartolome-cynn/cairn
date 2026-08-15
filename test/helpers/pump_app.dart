@@ -14,11 +14,14 @@ import 'package:flutter_test/flutter_test.dart';
 /// card is a 4:3 photo across the full width, so on the wider default view the
 /// first card alone is taller than the window and nothing below it can be
 /// tapped.
+/// Extra provider overrides go on top of the database one, for a test that has
+/// to control when a read answers rather than what it answers.
 Future<void> pumpApp(
   WidgetTester tester,
   AppDatabase db, {
   String location = '/',
   ThemeMode themeMode = ThemeMode.system,
+  List<Override> overrides = const <Override>[],
 }) async {
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 3;
@@ -26,7 +29,7 @@ Future<void> pumpApp(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [databaseProvider.overrideWithValue(db)],
+      overrides: [databaseProvider.overrideWithValue(db), ...overrides],
       child: CairnApp(initialLocation: location, themeMode: themeMode),
     ),
   );
