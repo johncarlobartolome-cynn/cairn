@@ -12,14 +12,15 @@ import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
 import 'peak_facts.dart';
 
-/// One peak: its name and the four facts the design puts in a 2x2 grid.
+/// One peak: its name, the four facts the design puts in a 2x2 grid, and where
+/// the climb starts.
 ///
 /// Pushed over the nav shell, so the floating nav is not on screen and no scroll
 /// view here owes it clearance.
 ///
-/// The photo hero, the frosted sheet, the jump-off point, the climb history and
-/// the Mark climbed button are all still to come. E2 brings the photography and
-/// the peak data, E3 brings marking.
+/// The photo hero, the frosted sheet, the climb history and the Mark climbed
+/// button are all still to come. E2 brings the photography, E3 brings marking
+/// and the history that follows from it.
 class PeakDetailScreen extends ConsumerWidget {
   const PeakDetailScreen({required this.mountainId, super.key});
 
@@ -71,6 +72,7 @@ class _Detail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = context.cairnText;
+    final jumpOff = peak.jumpOffLabel;
 
     return Scaffold(
       // Bare but for the way out: over the cream ground the band carries nothing
@@ -93,10 +95,47 @@ class _Detail extends StatelessWidget {
               const SectionLabel('Details'),
               const SizedBox(height: CairnSpace.x12),
               _StatGrid(peak: peak),
+              // Nothing at all when the peak has no jump-off recorded, so the
+              // gap above it goes with the section.
+              if (jumpOff != null) ...[
+                const SizedBox(height: CairnSpace.x24),
+                _JumpOff(point: jumpOff),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Where the climb starts, under its own label below the stat grid.
+///
+/// Body text, not a stat tile. These strings are an address a person reads and
+/// travels to, and one of them carries a registration note as well: "Brgy.
+/// Poblacion, Bakun (register at Bakun National High School or the Municipal
+/// Tourism Council)". A tile clips its value to a single line, which is what
+/// went wrong with region, so this wraps to as many lines as it needs and is
+/// never truncated.
+///
+/// Only built when the peak has one. The caller owns that check, because the
+/// spacing above the section goes with it.
+class _JumpOff extends StatelessWidget {
+  const _JumpOff({required this.point});
+
+  final String point;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionLabel('Jump-off point'),
+        const SizedBox(height: CairnSpace.x12),
+        // Plain Text on purpose: the defaults wrap and never ellipsize, so a
+        // maxLines or an overflow here would only take that away.
+        Text(point, style: context.cairnText.body),
+      ],
     );
   }
 }
