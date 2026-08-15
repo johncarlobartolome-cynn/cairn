@@ -84,7 +84,7 @@ void main() {
       // Region belongs to peak detail. On a card it pushed the footer onto a
       // third line, which grew every card until the last row fell off the
       // screen, and that is the grid losing the one job it has.
-      expect(find.text('Batangas (Nasugbu)'), findsNothing);
+      expect(find.text('Batangas'), findsNothing);
       expect(find.textContaining('Benguet'), findsNothing);
 
       await disposeApp(tester);
@@ -171,7 +171,7 @@ void main() {
       expect(find.text('811 m'), findsOneWidget);
       expect(find.text('Moderate'), findsOneWidget);
       expect(find.text('3 h'), findsOneWidget);
-      expect(find.text('Batangas (Nasugbu)'), findsOneWidget);
+      expect(find.text('Batangas'), findsOneWidget);
 
       // The grid used to draw four dashes, because every column behind it was
       // null. The tiles were always reading these fields and had nothing to

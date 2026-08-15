@@ -40,10 +40,17 @@ typedef SeededPeak = ({
 /// seed test enforces it against the rows as they land in the database rather
 /// than against this list, so a column added later is covered without anyone
 /// remembering to.
+///
+/// `region` is the province alone. It held province and municipality at first,
+/// which made it the one value too long for its stat tile, and the tile
+/// answered by cutting it. The municipality was never missing: it sits in the
+/// jump-off point directly below the tile on the same screen, for all six. So
+/// the tile was carrying a duplicate and paying for it with the half of the
+/// value a reader wanted. A province fits with room to spare.
 const seededPeaks = <SeededPeak>[
   (
     name: 'Mt. Kabunian',
-    region: 'Benguet (Bakun)',
+    region: 'Benguet',
     // 1,789 and 1,840 both circulate, from genuinely different sources rather
     // than one bad copy. Bakun's own registration materials say 1,789.
     elevationM: 1789,
@@ -55,7 +62,7 @@ const seededPeaks = <SeededPeak>[
   ),
   (
     name: 'Mt. Pulag',
-    region: 'Benguet (Bokod)',
+    region: 'Benguet',
     // Wikipedia cites PHIVOLCS for 2,928 and is arguably the better survey
     // figure. 2,922 is what the permit and the trail signage say, which is the
     // number a hiker stands next to.
@@ -70,7 +77,7 @@ const seededPeaks = <SeededPeak>[
   ),
   (
     name: 'Mt. Ulap',
-    region: 'Benguet (Itogon)',
+    region: 'Benguet',
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
@@ -80,7 +87,7 @@ const seededPeaks = <SeededPeak>[
   ),
   (
     name: 'Mt. Batulao',
-    region: 'Batangas (Nasugbu)',
+    region: 'Batangas',
     elevationM: 811,
     difficulty: Difficulty.moderate,
     // Renamed from Evercrest, and access here has changed more than once.
@@ -92,7 +99,7 @@ const seededPeaks = <SeededPeak>[
   ),
   (
     name: 'Mt. Daraitan',
-    region: 'Rizal (Tanay)',
+    region: 'Rizal',
     elevationM: 739,
     difficulty: Difficulty.moderate,
     jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay',
@@ -100,7 +107,7 @@ const seededPeaks = <SeededPeak>[
   ),
   (
     name: 'Mt. Mariglem',
-    region: 'Zambales (Cabangan)',
+    region: 'Zambales',
     // The shakiest row in the list. Mariglem only opened to hikers in 2023,
     // after PinoyMountaineer went dormant, so no canonical entry exists and
     // every figure comes from 2025-26 blogs that may be copying each other.

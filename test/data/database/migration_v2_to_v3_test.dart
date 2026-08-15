@@ -58,8 +58,11 @@ const _v2Ddl = [
 const _v2Rows = [
   "INSERT INTO mountains (name) VALUES ('Mt. Pulag'), ('Mt. Ulap'), "
       "('Mt. Batulao'), ('Mt. Daraitan');",
+  // 'Mountain Province' is a real province and a wrong one for Kabunian, which
+  // is the point: it has to differ from the curated 'Benguet' or the
+  // no-clobber assertion below passes without the guard doing anything.
   'INSERT INTO mountains (name, region, elevation_m) '
-      "VALUES ('Mt. Kabunian', 'Benguet', 1840);",
+      "VALUES ('Mt. Kabunian', 'Mountain Province', 1840);",
   'INSERT INTO mountains '
       '(name, region, elevation_m, difficulty, jump_off_point, '
       'estimated_hours, notes) '
@@ -108,7 +111,7 @@ void main() {
     // Written out rather than read off the seed constant. A test that compares
     // the migration's output to the same list the migration wrote from passes
     // on a typo, which is how a wrong answer gets certified.
-    expect(pulag.region, 'Benguet (Bokod)');
+    expect(pulag.region, 'Benguet');
     expect(pulag.elevationM, 2922);
     expect(pulag.difficulty, Difficulty.easy);
     expect(pulag.jumpOffPoint, 'DENR Ambangeg Ranger Station, Bokod');
@@ -129,10 +132,10 @@ void main() {
   test('a value already in the row survives, and only the gaps fill', () async {
     final kabunian = await peak('Mt. Kabunian');
 
-    // The fixture's own values, not the curated ones. Curated says
-    // 'Benguet (Bakun)' and 1,789, so either appearing here is the migration
-    // overwriting something a person put in.
-    expect(kabunian.region, 'Benguet');
+    // The fixture's own values, not the curated ones. Curated says 'Benguet'
+    // and 1,789, so either of those appearing here is the migration writing
+    // over something a person put in.
+    expect(kabunian.region, 'Mountain Province');
     expect(kabunian.elevationM, 1840);
 
     // The columns that were empty still had to fill, or the guard is just

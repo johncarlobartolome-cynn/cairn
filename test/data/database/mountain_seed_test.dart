@@ -24,7 +24,7 @@ typedef _Facts = ({
 /// rather than on a mountain.
 const _expected = <String, _Facts>{
   'Mt. Kabunian': (
-    region: 'Benguet (Bakun)',
+    region: 'Benguet',
     elevationM: 1789,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
@@ -33,14 +33,14 @@ const _expected = <String, _Facts>{
     estimatedHours: 4,
   ),
   'Mt. Pulag': (
-    region: 'Benguet (Bokod)',
+    region: 'Benguet',
     elevationM: 2922,
     difficulty: Difficulty.easy,
     jumpOffPoint: 'DENR Ambangeg Ranger Station, Bokod',
     estimatedHours: 4,
   ),
   'Mt. Ulap': (
-    region: 'Benguet (Itogon)',
+    region: 'Benguet',
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
@@ -49,7 +49,7 @@ const _expected = <String, _Facts>{
     estimatedHours: 3,
   ),
   'Mt. Batulao': (
-    region: 'Batangas (Nasugbu)',
+    region: 'Batangas',
     elevationM: 811,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
@@ -58,14 +58,14 @@ const _expected = <String, _Facts>{
     estimatedHours: 3,
   ),
   'Mt. Daraitan': (
-    region: 'Rizal (Tanay)',
+    region: 'Rizal',
     elevationM: 739,
     difficulty: Difficulty.moderate,
     jumpOffPoint: 'Brgy. Daraitan Barangay Hall, Tanay',
     estimatedHours: 3,
   ),
   'Mt. Mariglem': (
-    region: 'Zambales (Cabangan)',
+    region: 'Zambales',
     elevationM: 573,
     difficulty: Difficulty.easy,
     jumpOffPoint: 'Sitio Maporac, Brgy. New San Juan, Cabangan',

@@ -132,7 +132,7 @@ void main() {
 
     final twoFacts = await heightOf(['811 m', 'Moderate']);
     final threeFacts = await heightOf([
-      'Batangas (Nasugbu)',
+      'Batangas',
       '811 m',
       'Moderate',
     ]);

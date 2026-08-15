@@ -1,4 +1,5 @@
 import 'package:cairn/app/theme/tokens.dart';
+import 'package:cairn/data/database/seed/mountain_seed.dart';
 import 'package:cairn/shared/widgets/stat_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -60,10 +61,11 @@ void main() {
   });
 
   testWidgets('a long value wraps instead of being cut short', (tester) async {
-    // Region is a province and a town for every curated peak, and a peak the
-    // user adds can run longer again. The tile used to be one line with
-    // wrapping off, so it drew "Batangas (" and an ellipsis. Cutting the value
-    // someone opened the tile to read is the wrong answer.
+    // The safety net. No curated value needs it any more, since region became
+    // the province alone, but a peak the user adds can carry anything and the
+    // rule is that a tile never ellipsizes. The tile used to be one line with
+    // wrapping off, so a value this long drew as "Batangas (" and an ellipsis,
+    // which hides the half the reader opened the tile for.
     await pumpCairn(
       tester,
       const StatTile(
@@ -94,6 +96,7 @@ void main() {
     // The 2x2 grid on peak detail sets these side by side, so one of them
     // taking a second line must not leave the other short or out of line. The
     // arrangement here is the grid's own: IntrinsicHeight, tiles stretched.
+    // The long value is a user-added peak's, not a curated one.
     await pumpCairn(
       tester,
       const IntrinsicHeight(
@@ -118,6 +121,53 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(short.top, wrapped.top);
     expect(short.height, wrapped.height);
+  });
+
+  testWidgets('no seeded region renders truncated in a half-width tile', (
+    tester,
+  ) async {
+    // The rule this ticket learned the hard way: a value in a StatTile must
+    // never render truncated. An ellipsis is not a graceful fallback, it hides
+    // exactly the part the reader wanted. Region earned this test by being the
+    // field that broke it.
+    //
+    // The width is the narrowest real one: two tiles and a gap inside the page
+    // margins of a 360dp phone, which is the smallest screen this app targets.
+    // Derived from the tokens rather than typed, so a spacing change is caught
+    // here too.
+    //
+    // This harness paints a fallback font roughly twice Manrope's width, which
+    // makes the test stricter than the device rather than looser. Passing here
+    // means passing there.
+    const narrowestPhone = 360.0;
+    const halfTile =
+        (narrowestPhone - CairnSpace.page * 2 - CairnSpace.cardGap) / 2;
+
+    for (final peak in seededPeaks) {
+      await pumpCairn(
+        tester,
+        StatTile(
+          value: peak.region,
+          caption: 'Region',
+          icon: Icons.place_outlined,
+        ),
+        width: halfTile,
+      );
+
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.text(peak.region),
+      );
+
+      expect(tester.takeException(), isNull, reason: peak.name);
+      expect(
+        paragraph.didExceedMaxLines,
+        isFalse,
+        reason:
+            '${peak.name} shows region "${peak.region}", which does not fit a '
+            '${halfTile}dp tile and would render cut short. Shorten the data, '
+            'not the reader',
+      );
+    }
   });
 
   testWidgets('emphasised tile switches to the soft accent fill', (
