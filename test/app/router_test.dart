@@ -72,6 +72,24 @@ void main() {
       await disposeApp(tester);
     });
 
+    testWidgets('the seeded figures reach the cards at half width', (
+      tester,
+    ) async {
+      await pumpApp(tester, db);
+
+      // Real content through the T9 wrap fix for the first time. Every card is
+      // half a screen wide and now carries region, elevation and difficulty,
+      // which is more than a single line holds, so the meta row has to fold
+      // instead of overflowing.
+      expect(tester.takeException(), isNull);
+
+      expect(find.text('Batangas (Nasugbu)'), findsOneWidget);
+      expect(find.text('811 m'), findsOneWidget);
+      expect(find.text('Moderate'), findsWidgets);
+
+      await disposeApp(tester);
+    });
+
     testWidgets('a taller footer beside a shorter one does not overflow', (
       tester,
     ) async {
@@ -131,9 +149,20 @@ void main() {
       expect(find.text(firstPeak.name), findsOneWidget);
       // Elevation, difficulty, hours, region.
       expect(find.byType(StatTile), findsNWidgets(4));
-      // Every one of those fields is still null, so every tile shows a dash
-      // rather than a number nobody recorded.
-      expect(find.text('–'), findsNWidgets(4));
+
+      // Batulao is alphabetically first, so it is the peak a deep link to
+      // `firstPeak` opens. Its four figures below are the ones the peak-data
+      // note verified.
+      expect(firstPeak.name, 'Mt. Batulao');
+      expect(find.text('811 m'), findsOneWidget);
+      expect(find.text('Moderate'), findsOneWidget);
+      expect(find.text('3 h'), findsOneWidget);
+      expect(find.text('Batangas (Nasugbu)'), findsOneWidget);
+
+      // The grid used to draw four dashes, because every column behind it was
+      // null. The tiles were always reading these fields and had nothing to
+      // read. Nothing in this screen changed to fill them.
+      expect(find.text('–'), findsNothing);
       expect(find.byType(PillNav), findsNothing);
 
       await disposeApp(tester);
