@@ -12,16 +12,17 @@ import '../../shared/widgets/empty_state_page.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
 import '../climbs/mark_climbed_sheet.dart';
+import '../climbs/widgets/climb_history.dart';
 import 'peak_facts.dart';
 
 /// One peak: its name, the four facts the design puts in a 2x2 grid, where the
-/// climb starts, and the action that logs a climb.
+/// climb starts, every climb logged against it, and the action that logs
+/// another.
 ///
 /// Pushed over the nav shell, so the floating nav is not on screen and no scroll
 /// view here owes it clearance.
 ///
-/// The photo hero, the frosted sheet and the climb history are still to come.
-/// E2 brings the photography, T16 brings the history.
+/// The photo hero and the frosted sheet are still to come with E2's photography.
 class PeakDetailScreen extends ConsumerWidget {
   const PeakDetailScreen({required this.mountainId, super.key});
 
@@ -34,16 +35,28 @@ class PeakDetailScreen extends ConsumerWidget {
     final id = mountainId;
     if (id == null) return _notFound(context);
 
-    return switch (ref.watch(mountainByIdProvider(id))) {
-      AsyncValue(hasError: true) => EmptyStatePage(
+    final peak = ref.watch(mountainByIdProvider(id));
+    // Read here rather than inside the history section, so the screen waits for
+    // both queries and then paints once, complete. Letting the history arrive a
+    // frame late would slide the Mark climbed action down the screen just as a
+    // thumb reaches it, and it is the same mistake as drawing a peak card
+    // before its climbed state is known.
+    final climbs = ref.watch(climbsForMountainProvider(id));
+
+    return switch ((peak, climbs)) {
+      (AsyncValue(hasError: true), _) ||
+      (_, AsyncValue(hasError: true)) => EmptyStatePage(
         icon: Icons.cloud_off_rounded,
         title: 'Could not open that peak',
         message: 'Something went wrong reading your library.',
         action: _backToPeaks(context),
       ),
-      AsyncValue(hasValue: true, value: final peak?) => _Detail(peak: peak),
       // A real answer: the query ran and the library has no peak with that id.
-      AsyncValue(hasValue: true) => _notFound(context),
+      (AsyncValue(hasValue: true, value: null), _) => _notFound(context),
+      (
+        AsyncValue(hasValue: true, value: final row?),
+        AsyncValue(hasValue: true, value: final log?),
+      ) => _Detail(peak: row, climbs: log),
       _ => const Scaffold(
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
       ),
@@ -66,9 +79,12 @@ Widget _backToPeaks(BuildContext context) => FilledButton(
 );
 
 class _Detail extends StatelessWidget {
-  const _Detail({required this.peak});
+  const _Detail({required this.peak, required this.climbs});
 
   final Mountain peak;
+
+  /// Newest first. Empty for a peak nobody has climbed yet.
+  final List<Climb> climbs;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +118,14 @@ class _Detail extends StatelessWidget {
                 const SizedBox(height: CairnSpace.x24),
                 _JumpOff(point: jumpOff),
               ],
+              // Same rule as the jump-off: a peak with no climbs shows nothing
+              // here, label included. The section is also where the screen's
+              // empty lower half finally goes, which is the half the design's
+              // open question calls the layout's real problem.
+              if (climbs.isNotEmpty) ...[
+                const SizedBox(height: CairnSpace.x24),
+                ClimbHistory(climbs: climbs),
+              ],
               const SizedBox(height: CairnSpace.x32),
               // In the scroll flow at the foot of the content rather than
               // pinned to the bottom of the window. The screen is short today,
@@ -120,9 +144,9 @@ class _Detail extends StatelessWidget {
 
 /// The screen's primary action. Opens the sheet that logs a climb.
 ///
-/// Says nothing yet about whether the peak has already been climbed. A peak can
-/// be climbed again, so the button does not disappear on the second visit, and
-/// T16 owns everything the app shows once a climb exists.
+/// It says nothing about whether the peak has been climbed already, and it does
+/// not need to: the climbs above it say that, and a peak can be climbed again,
+/// so the label stays put on the second visit and every visit after.
 class _MarkClimbedAction extends StatelessWidget {
   const _MarkClimbedAction({required this.peak});
 

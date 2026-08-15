@@ -67,6 +67,17 @@ final climbsProvider = StreamProvider<List<Climb>>(
   (ref) => ref.watch(climbDaoProvider).watchAll(),
 );
 
+/// Every climb logged against one peak, newest first.
+///
+/// Auto-disposed for the same reason as [mountainByIdProvider]: peak detail is
+/// the only watcher, so the query closes with the screen rather than staying
+/// open for a peak nobody is looking at.
+final climbsForMountainProvider = StreamProvider.autoDispose
+    .family<List<Climb>, int>(
+      (ref, mountainId) =>
+          ref.watch(climbDaoProvider).watchForMountain(mountainId),
+    );
+
 /// The ids of peaks with at least one logged climb.
 final climbedMountainIdsProvider = StreamProvider<Set<int>>(
   (ref) => ref.watch(climbDaoProvider).watchClimbedMountainIds(),
