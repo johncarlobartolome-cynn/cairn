@@ -24,11 +24,16 @@ class AppDatabase extends _$AppDatabase {
   /// reason the data layer is testable at all.
   AppDatabase(super.e);
 
-  /// Bumped to 2 when `climbs.date` stopped being a timestamp and became a
+  /// 2 arrived when `climbs.date` stopped being a timestamp and became a
   /// calendar day. v1 never left this branch, but the doc's rule is that a table
   /// change bumps the version and adds a step even pre-release, so it does.
+  ///
+  /// 3 arrived with the verified figures for the six curated peaks. No table
+  /// changed: those columns have existed since v1 and simply held null. The
+  /// version still moves, because a version bump is the only thing that runs
+  /// code against a database that already exists.
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -59,6 +64,24 @@ class AppDatabase extends _$AppDatabase {
             },
           ),
         );
+      }
+
+      if (from < 3) {
+        // A data step rather than a schema one. T4 seeded six peaks by name and
+        // left region, elevation, difficulty, jump-off point and hours null,
+        // because no verified figures existed yet. T12 gathered them.
+        //
+        // The seed cannot deliver them on its own: it runs from `beforeOpen`
+        // only when the database file is created, and that already happened on
+        // every phone the app is installed on. So the figures either arrive
+        // here or they never arrive at all.
+        //
+        // Reaching for the generated `mountains` table through the DAO is safe
+        // in this one step because the table is byte-identical in v2 and v3. A
+        // later migration that actually changes `mountains` has to freeze this
+        // step against the v3 schema before doing so, or it will start writing
+        // v2 rows through a v4 shape.
+        await backfillSeededPeakFacts(MountainDao(this));
       }
     },
     beforeOpen: (details) async {

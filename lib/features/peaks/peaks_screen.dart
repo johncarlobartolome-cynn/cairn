@@ -148,7 +148,19 @@ class _Card extends StatelessWidget {
     return PeakCard(
       name: peak.name,
       climbed: climbedIds.contains(peak.id),
-      meta: [peak.region, peak.elevationLabel, peak.difficultyLabel],
+      // Elevation and difficulty, and deliberately not region.
+      //
+      // Region was on here when T13 first filled the columns, and it cost the
+      // grid the thing the grid is for. Three facts do not fit one line at half
+      // width, so every footer ran to a third line, the cards grew, and only
+      // two and a half rows survived on screen. Six peaks stopped reading as
+      // one set. The wrap was ragged with it too, because each card broke at a
+      // different fact depending on how long its region was.
+      //
+      // Nothing is lost. Region is a stat tile on peak detail, which is where
+      // someone asks what province a mountain is in. This list answers "which
+      // of my six have I climbed", and a province does not help with that.
+      meta: [peak.elevationLabel, peak.difficultyLabel],
       onTap: () => context.push(CairnRoute.mountain(peak.id)),
     );
   }

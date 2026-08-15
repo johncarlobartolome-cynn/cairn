@@ -95,10 +95,20 @@ void main() {
     await dir.delete(recursive: true);
   });
 
-  test('the upgrade lands on schema version 2', () async {
+  test('the upgrade lands on the current schema version', () async {
     final row = await db.customSelect('PRAGMA user_version').getSingle();
 
-    expect(row.read<int>('user_version'), 2);
+    expect(row.read<int>('user_version'), db.schemaVersion);
+  });
+
+  test('a v1 database runs every later step, not just its own', () async {
+    // The date rewrite is the 1 to 2 step and the peak figures are the 2 to 3
+    // step. A database this old has to come out the far end of both, so the
+    // fixture's two name-only peaks should be carrying their figures now.
+    final peaks = await MountainDao(db).getAll();
+
+    expect(peaks.map((p) => p.name), ['Mt. Pulag', 'Mt. Ulap']);
+    expect(peaks.map((p) => p.elevationM), [2922, 1846]);
   });
 
   test('every v1 instant becomes the day it was locally', () async {

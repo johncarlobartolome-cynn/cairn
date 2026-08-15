@@ -105,6 +105,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a third fact makes the card taller', (tester) async {
+    // The reason the peaks list stops at two facts. Region as a third one sent
+    // the footer onto another line on every card, and three rows of that pushed
+    // the last row off the screen, which is the thing the grid exists to
+    // prevent.
+    //
+    // Both cards render at the same half-screen width, so the extra item is the
+    // only difference between them.
+    //
+    // Measured as intrinsic height rather than laid-out height, because that is
+    // the number the grid actually uses: a row of cards goes through
+    // IntrinsicHeight, and the tallest card in it sets the row.
+    const half = 170.0;
+
+    Future<double> heightOf(List<String?> meta) async {
+      await pumpCairn(
+        tester,
+        PeakCard(name: 'Mt. Batulao', climbed: false, meta: meta),
+        width: half,
+      );
+      return tester
+          .renderObject<RenderBox>(find.byType(PeakCard))
+          .getMaxIntrinsicHeight(half);
+    }
+
+    final twoFacts = await heightOf(['811 m', 'Moderate']);
+    final threeFacts = await heightOf([
+      'Batangas',
+      '811 m',
+      'Moderate',
+    ]);
+
+    expect(
+      threeFacts,
+      greaterThan(twoFacts),
+      reason:
+          'the card grew from ${twoFacts}dp to ${threeFacts}dp on one extra '
+          'fact, and the grid pays that three rows over',
+    );
+  });
+
   testWidgets('reports taps', (tester) async {
     var taps = 0;
     await pumpCairn(

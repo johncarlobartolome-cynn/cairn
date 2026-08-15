@@ -72,6 +72,38 @@ void main() {
       await disposeApp(tester);
     });
 
+    testWidgets('a card carries elevation and difficulty, not region', (
+      tester,
+    ) async {
+      await pumpApp(tester, db);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('811 m'), findsOneWidget);
+      expect(find.text('Moderate'), findsWidgets);
+
+      // Region belongs to peak detail. On a card it pushed the footer onto a
+      // third line, which grew every card until the last row fell off the
+      // screen, and that is the grid losing the one job it has.
+      expect(find.text('Batangas'), findsNothing);
+      expect(find.textContaining('Benguet'), findsNothing);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('a card is handed exactly two facts', (tester) async {
+      await pumpApp(tester, db);
+
+      // Whether all six land on one screen is a question about real glyph
+      // widths, and this harness paints a fallback font roughly twice Manrope's
+      // width, so it cannot answer that. The device screenshots do. What holds
+      // here regardless of font is what the card is given.
+      for (final card in tester.widgetList<PeakCard>(find.byType(PeakCard))) {
+        expect(card.meta, hasLength(2));
+      }
+
+      await disposeApp(tester);
+    });
+
     testWidgets('a taller footer beside a shorter one does not overflow', (
       tester,
     ) async {
@@ -131,9 +163,20 @@ void main() {
       expect(find.text(firstPeak.name), findsOneWidget);
       // Elevation, difficulty, hours, region.
       expect(find.byType(StatTile), findsNWidgets(4));
-      // Every one of those fields is still null, so every tile shows a dash
-      // rather than a number nobody recorded.
-      expect(find.text('–'), findsNWidgets(4));
+
+      // Batulao is alphabetically first, so it is the peak a deep link to
+      // `firstPeak` opens. Its four figures below are the ones the peak-data
+      // note verified.
+      expect(firstPeak.name, 'Mt. Batulao');
+      expect(find.text('811 m'), findsOneWidget);
+      expect(find.text('Moderate'), findsOneWidget);
+      expect(find.text('3 h'), findsOneWidget);
+      expect(find.text('Batangas'), findsOneWidget);
+
+      // The grid used to draw four dashes, because every column behind it was
+      // null. The tiles were always reading these fields and had nothing to
+      // read. Nothing in this screen changed to fill them.
+      expect(find.text('–'), findsNothing);
       expect(find.byType(PillNav), findsNothing);
 
       await disposeApp(tester);
