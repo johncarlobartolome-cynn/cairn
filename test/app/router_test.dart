@@ -72,20 +72,34 @@ void main() {
       await disposeApp(tester);
     });
 
-    testWidgets('the seeded figures reach the cards at half width', (
+    testWidgets('a card carries elevation and difficulty, not region', (
       tester,
     ) async {
       await pumpApp(tester, db);
 
-      // Real content through the T9 wrap fix for the first time. Every card is
-      // half a screen wide and now carries region, elevation and difficulty,
-      // which is more than a single line holds, so the meta row has to fold
-      // instead of overflowing.
       expect(tester.takeException(), isNull);
-
-      expect(find.text('Batangas (Nasugbu)'), findsOneWidget);
       expect(find.text('811 m'), findsOneWidget);
       expect(find.text('Moderate'), findsWidgets);
+
+      // Region belongs to peak detail. On a card it pushed the footer onto a
+      // third line, which grew every card until the last row fell off the
+      // screen, and that is the grid losing the one job it has.
+      expect(find.text('Batangas (Nasugbu)'), findsNothing);
+      expect(find.textContaining('Benguet'), findsNothing);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('a card is handed exactly two facts', (tester) async {
+      await pumpApp(tester, db);
+
+      // Whether all six land on one screen is a question about real glyph
+      // widths, and this harness paints a fallback font roughly twice Manrope's
+      // width, so it cannot answer that. The device screenshots do. What holds
+      // here regardless of font is what the card is given.
+      for (final card in tester.widgetList<PeakCard>(find.byType(PeakCard))) {
+        expect(card.meta, hasLength(2));
+      }
 
       await disposeApp(tester);
     });

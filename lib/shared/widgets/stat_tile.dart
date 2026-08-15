@@ -61,9 +61,23 @@ class StatTile extends StatelessWidget {
                   child: Text(
                     shown,
                     style: text.statValue,
-                    maxLines: 1,
+                    // Two lines, and wrapping allowed.
+                    //
+                    // This was one line with wrapping off, which shortened the
+                    // data rather than fitting it: "Batangas (Nasugbu)" drew as
+                    // "Batangas (" and an ellipsis. Region is a province and a
+                    // town for every peak in the library, so that is the
+                    // field's normal case and not an outlier, and a peak the
+                    // user adds can run longer still. Cutting the value someone
+                    // opened the tile to read is the wrong trade.
+                    //
+                    // A wrapped tile stands taller than its neighbour, which
+                    // the 2x2 grid on peak detail already absorbs: each row
+                    // goes through IntrinsicHeight with its tiles stretched, so
+                    // both take the taller one's height and the row stays
+                    // level.
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    softWrap: false,
                   ),
                 ),
               ],

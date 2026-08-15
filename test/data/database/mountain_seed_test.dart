@@ -28,8 +28,8 @@ const _expected = <String, _Facts>{
     elevationM: 1789,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
-        'Brgy. Poblacion, Bakun — register at Bakun National High School / '
-        'Municipal Tourism Council',
+        'Brgy. Poblacion, Bakun (register at Bakun National High School or '
+        'the Municipal Tourism Council)',
     estimatedHours: 4,
   ),
   'Mt. Pulag': (
@@ -44,8 +44,8 @@ const _expected = <String, _Facts>{
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
-        'Brgy. Ampucao, Itogon — register at the Barangay Hall / Elementary '
-        'School gym',
+        'Brgy. Ampucao, Itogon (register at the Barangay Hall or the '
+        'Elementary School gym)',
     estimatedHours: 3,
   ),
   'Mt. Batulao': (
@@ -116,6 +116,33 @@ void main() {
       expect(peak.jumpOffPoint, facts.jumpOffPoint, reason: '$name jump-off');
       expect(peak.estimatedHours, facts.estimatedHours, reason: '$name hours');
     });
+  });
+
+  test('no seeded value carries an em dash', () async {
+    // A standing rule for everything this app puts on a screen: an em dash
+    // reads as machine-written. Two jump-off points arrived with one, straight
+    // out of the research note, and they turn user-facing the moment peak
+    // detail grows its jump-off section.
+    //
+    // Asserted over `SELECT *` rather than over the six records, so a text
+    // column a later ticket adds is covered without anyone remembering this
+    // test exists.
+    const emDash = '—';
+
+    for (final row in await db.customSelect('SELECT * FROM mountains').get()) {
+      row.data.forEach((column, value) {
+        if (value is! String) return;
+
+        expect(
+          value,
+          isNot(contains(emDash)),
+          reason:
+              'mountains.$column holds an em dash: "$value". Rewrite it with '
+              'commas, parentheses or "or". The rule covers every string the '
+              'app shows.',
+        );
+      });
+    }
   });
 
   test('a seeded peak has no notes, because notes belong to the user', () async {

@@ -140,8 +140,8 @@ void main() {
     expect(kabunian.difficulty, Difficulty.moderate);
     expect(
       kabunian.jumpOffPoint,
-      'Brgy. Poblacion, Bakun — register at Bakun National High School / '
-      'Municipal Tourism Council',
+      'Brgy. Poblacion, Bakun (register at Bakun National High School or '
+      'the Municipal Tourism Council)',
     );
     expect(kabunian.estimatedHours, 4);
   });

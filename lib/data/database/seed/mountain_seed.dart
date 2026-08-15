@@ -34,6 +34,12 @@ typedef SeededPeak = ({
 /// against these six, so nothing in this list is `hard` and that is correct:
 /// 7-9 is Guiting-Guiting territory. A scale relative to the list would
 /// re-grade every existing peak each time a user adds one.
+///
+/// Every string here reaches a screen sooner or later, so none of them carries
+/// an em dash. That is a standing rule for anything the app shows, and the
+/// seed test enforces it against the rows as they land in the database rather
+/// than against this list, so a column added later is covered without anyone
+/// remembering to.
 const seededPeaks = <SeededPeak>[
   (
     name: 'Mt. Kabunian',
@@ -43,8 +49,8 @@ const seededPeaks = <SeededPeak>[
     elevationM: 1789,
     difficulty: Difficulty.moderate,
     jumpOffPoint:
-        'Brgy. Poblacion, Bakun — register at Bakun National High School / '
-        'Municipal Tourism Council',
+        'Brgy. Poblacion, Bakun (register at Bakun National High School or '
+        'the Municipal Tourism Council)',
     estimatedHours: 4,
   ),
   (
@@ -68,8 +74,8 @@ const seededPeaks = <SeededPeak>[
     elevationM: 1846,
     difficulty: Difficulty.easy,
     jumpOffPoint:
-        'Brgy. Ampucao, Itogon — register at the Barangay Hall / Elementary '
-        'School gym',
+        'Brgy. Ampucao, Itogon (register at the Barangay Hall or the '
+        'Elementary School gym)',
     estimatedHours: 3,
   ),
   (
