@@ -1,6 +1,7 @@
 import 'package:cairn/app/theme/tokens.dart';
 import 'package:cairn/dev/theme_gallery.dart';
 import 'package:cairn/shared/widgets/badge_tile.dart';
+import 'package:cairn/shared/widgets/cairn_button.dart';
 import 'package:cairn/shared/widgets/filter_pill_row.dart';
 import 'package:cairn/shared/widgets/frosted_sheet.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
@@ -27,6 +28,8 @@ void main() {
 
     expect(find.byType(SectionLabel), findsWidgets);
     expect(find.byType(FilterPillRow), findsOneWidget);
+    // The primary button, live and disabled.
+    expect(find.byType(CairnButton), findsNWidgets(2));
     expect(find.byType(PeakCard), findsNWidgets(2));
     expect(find.byType(StatTile), findsNWidgets(4));
     expect(find.byType(BadgeTile), findsNWidgets(3));

@@ -7,20 +7,21 @@ import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
 import '../../shared/widgets/cairn_back_button.dart';
+import '../../shared/widgets/cairn_button.dart';
 import '../../shared/widgets/empty_state_page.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
+import '../climbs/mark_climbed_sheet.dart';
 import 'peak_facts.dart';
 
-/// One peak: its name, the four facts the design puts in a 2x2 grid, and where
-/// the climb starts.
+/// One peak: its name, the four facts the design puts in a 2x2 grid, where the
+/// climb starts, and the action that logs a climb.
 ///
 /// Pushed over the nav shell, so the floating nav is not on screen and no scroll
 /// view here owes it clearance.
 ///
-/// The photo hero, the frosted sheet, the climb history and the Mark climbed
-/// button are all still to come. E2 brings the photography, E3 brings marking
-/// and the history that follows from it.
+/// The photo hero, the frosted sheet and the climb history are still to come.
+/// E2 brings the photography, T16 brings the history.
 class PeakDetailScreen extends ConsumerWidget {
   const PeakDetailScreen({required this.mountainId, super.key});
 
@@ -101,9 +102,43 @@ class _Detail extends StatelessWidget {
                 const SizedBox(height: CairnSpace.x24),
                 _JumpOff(point: jumpOff),
               ],
+              const SizedBox(height: CairnSpace.x32),
+              // In the scroll flow at the foot of the content rather than
+              // pinned to the bottom of the window. The screen is short today,
+              // so the action is on screen without scrolling, and the design's
+              // own open question says peak detail's layout is due a rethink
+              // that will decide where the action really lives. Pinning a bar
+              // now would build the half of that answer nobody has agreed on.
+              _MarkClimbedAction(peak: peak),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The screen's primary action. Opens the sheet that logs a climb.
+///
+/// Says nothing yet about whether the peak has already been climbed. A peak can
+/// be climbed again, so the button does not disappear on the second visit, and
+/// T16 owns everything the app shows once a climb exists.
+class _MarkClimbedAction extends StatelessWidget {
+  const _MarkClimbedAction({required this.peak});
+
+  final Mountain peak;
+
+  @override
+  Widget build(BuildContext context) {
+    return CairnButton(
+      label: 'Mark climbed',
+      // The same stand-in glyph the climbed mark uses on a peak card. See the
+      // TODO in peak_card.dart: a custom three-stone cairn replaces both.
+      icon: Icons.terrain_rounded,
+      onPressed: () => MarkClimbedSheet.show(
+        context,
+        mountainId: peak.id,
+        mountainName: peak.name,
       ),
     );
   }

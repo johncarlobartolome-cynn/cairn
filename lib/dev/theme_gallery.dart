@@ -14,6 +14,7 @@ import '../app/theme/theme.dart';
 import '../app/theme/tokens.dart';
 import '../shared/extensions/theme_context.dart';
 import '../shared/widgets/badge_tile.dart';
+import '../shared/widgets/cairn_button.dart';
 import '../shared/widgets/filter_pill_row.dart';
 import '../shared/widgets/frosted_sheet.dart';
 import '../shared/widgets/meta_row.dart';
@@ -465,11 +466,21 @@ class _ControlsDemo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        CairnButton(
+          label: 'Mark climbed',
+          icon: Icons.terrain_rounded,
+          onPressed: () {},
+        ),
+        const SizedBox(height: CairnSpace.x8),
+        // The same button with nothing to do. The busy state is deliberately
+        // not catalogued here: its spinner never stops, and the gallery's smoke
+        // test settles the tree before it looks at it.
+        const CairnButton(label: 'Save climb', onPressed: null),
+        const SizedBox(height: CairnSpace.x12),
         Wrap(
           spacing: CairnSpace.x12,
           runSpacing: CairnSpace.x8,
           children: [
-            FilledButton(onPressed: () {}, child: const Text('Mark climbed')),
             OutlinedButton(onPressed: () {}, child: const Text('Share')),
             TextButton(onPressed: () {}, child: const Text('Edit')),
           ],

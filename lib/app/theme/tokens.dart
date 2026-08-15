@@ -188,6 +188,11 @@ abstract final class CairnSize {
   /// Hairline borders and dividers.
   static const double hairline = 1;
 
+  /// Minimum height of a primary button, and of any field you tap rather than
+  /// type into. The spec sizes the button's label and not the control, so this
+  /// is the smallest comfortable touch target rather than a transcribed number.
+  static const double control = 48;
+
   /// Standard icon in body flow, e.g. a stat tile's leading glyph.
   static const double icon = 18;
 
