@@ -68,23 +68,60 @@ void main() {
     expect(discOf(tester).color, CairnPalette.light.gold);
   });
 
-  testWidgets('holds its layout in a 3-up grid cell', (tester) async {
-    // The size a 3-column grid gives it on a 360dp phone, at the aspect the
-    // widget documents. The label wraps to two lines at this width.
+  testWidgets('a long name and a long condition are shown in full', (
+    tester,
+  ) async {
+    // Squeezed to the narrowest cell the app could ever give it, with the
+    // longest strings it carries: a peak name somebody typed, and the sentence
+    // that says how to earn the badge.
+    const name = 'Guiting-Guiting Traverse';
+    const condition = 'Climb every peak in your library.';
+
     await pumpCairn(
       tester,
-      const SizedBox(
-        height: 144,
-        child: BadgeTile(
-          label: 'Guiting-Guiting',
-          icon: Icons.terrain_rounded,
-          state: BadgeTileState.unlocked,
-          caption: '12 Jul 2026',
-        ),
+      const BadgeTile(
+        label: name,
+        icon: Icons.terrain_rounded,
+        state: BadgeTileState.locked,
+        caption: condition,
       ),
       width: 98,
     );
 
     expect(tester.takeException(), isNull);
+    expect(find.text(name), findsOneWidget);
+    expect(find.text(condition), findsOneWidget);
+
+    // An ellipsis on a locked tile hides the half a reader opened it for, so
+    // neither line may cap itself. The tile grows instead, and the grid that
+    // holds it measures rather than guessing an aspect ratio.
+    for (final label in const <String>[name, condition]) {
+      final line = tester.widget<Text>(find.text(label));
+      expect(line.maxLines, isNull, reason: label);
+      expect(line.overflow, isNot(TextOverflow.ellipsis), reason: label);
+    }
+  });
+
+  testWidgets('it takes its height from its own content', (tester) async {
+    Future<double> heightWith(String caption) async {
+      await pumpCairn(
+        tester,
+        BadgeTile(
+          label: 'Mt. Pulag',
+          icon: Icons.terrain_rounded,
+          state: BadgeTileState.locked,
+          caption: caption,
+        ),
+        width: 154,
+      );
+      return tester.getSize(find.byType(BadgeTile)).height;
+    }
+
+    final short = await heightWith('Climb it.');
+    final long = await heightWith('Climb every peak in your library.');
+
+    // A caption that wraps makes the tile taller rather than cutting itself
+    // down to a fixed one. This is why the grid rows go through IntrinsicHeight.
+    expect(long, greaterThan(short));
   });
 }

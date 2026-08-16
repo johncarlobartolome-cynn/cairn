@@ -4,6 +4,7 @@ import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
 import 'package:cairn/data/database/tables/mountains.dart' show Difficulty;
+import 'package:cairn/shared/widgets/badge_tile.dart';
 import 'package:cairn/shared/widgets/cairn_back_button.dart';
 import 'package:cairn/shared/widgets/empty_state.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
@@ -149,7 +150,9 @@ void main() {
       await pumpApp(tester, db, location: CairnRoute.badges);
 
       expect(find.text('badges'), findsOneWidget);
-      expect(find.byType(EmptyState), findsOneWidget);
+      // The six seeded peaks and the three milestones, every one still locked.
+      // T19 replaced the empty state that stood here from T5.
+      expect(find.byType(BadgeTile), findsNWidgets(9));
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -274,7 +277,9 @@ void main() {
 
       await tester.tap(find.text('Badges'));
       await tester.pumpAndSettle();
-      expect(find.text('No badges yet'), findsOneWidget);
+      // The badges screen's heading. Lower case, so it cannot match the nav's
+      // own 'Badges' label.
+      expect(find.text('badges'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await tester.tap(find.text('Peaks'));
@@ -368,7 +373,9 @@ void main() {
 
       // Badges, not the peaks list: the control popped rather than reaching for
       // its fallback.
-      expect(find.text('No badges yet'), findsOneWidget);
+      // The badges screen's heading. Lower case, so it cannot match the nav's
+      // own 'Badges' label.
+      expect(find.text('badges'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -418,7 +425,9 @@ void main() {
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('No badges yet'), findsOneWidget);
+      // The badges screen's heading. Lower case, so it cannot match the nav's
+      // own 'Badges' label.
+      expect(find.text('badges'), findsOneWidget);
 
       await disposeApp(tester);
     });
