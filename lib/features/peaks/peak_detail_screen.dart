@@ -14,6 +14,9 @@ import '../../shared/widgets/stat_tile.dart';
 import '../climbs/mark_climbed_sheet.dart';
 import '../climbs/widgets/climb_history.dart';
 import 'peak_facts.dart';
+import 'peaks_providers.dart';
+import 'share_card.dart';
+import 'widgets/share_card_sheet.dart';
 
 /// One peak: its name, the four facts the design puts in a 2x2 grid, where the
 /// climb starts, every climb logged against it, and the action that logs
@@ -42,21 +45,29 @@ class PeakDetailScreen extends ConsumerWidget {
     // thumb reaches it, and it is the same mistake as drawing a peak card
     // before its climbed state is known.
     final climbs = ref.watch(climbsForMountainProvider(id));
+    // The share card joins the same gate rather than arriving on its own. A
+    // control that appears a beat after the screen settles is a control the
+    // thumb has already moved past, and this one carries a number the rest of
+    // the screen does not show.
+    final share = ref.watch(shareCardProvider(id));
 
-    return switch ((peak, climbs)) {
-      (AsyncValue(hasError: true), _) ||
-      (_, AsyncValue(hasError: true)) => EmptyStatePage(
+    return switch ((peak, climbs, share)) {
+      (AsyncValue(hasError: true), _, _) ||
+      (_, AsyncValue(hasError: true), _) ||
+      (_, _, AsyncValue(hasError: true)) => EmptyStatePage(
         icon: Icons.cloud_off_rounded,
         title: 'Could not open that peak',
         message: 'Something went wrong reading your library.',
         action: _backToPeaks(context),
       ),
       // A real answer: the query ran and the library has no peak with that id.
-      (AsyncValue(hasValue: true, value: null), _) => _notFound(context),
+      (AsyncValue(hasValue: true, value: null), _, _) => _notFound(context),
       (
         AsyncValue(hasValue: true, value: final row?),
         AsyncValue(hasValue: true, value: final log?),
-      ) => _Detail(peak: row, climbs: log),
+        AsyncValue(hasValue: true, value: final card),
+      ) =>
+        _Detail(peak: row, climbs: log, card: card),
       _ => const Scaffold(
         body: SafeArea(child: Center(child: CircularProgressIndicator())),
       ),
@@ -79,23 +90,31 @@ Widget _backToPeaks(BuildContext context) => FilledButton(
 );
 
 class _Detail extends StatelessWidget {
-  const _Detail({required this.peak, required this.climbs});
+  const _Detail({required this.peak, required this.climbs, required this.card});
 
   final Mountain peak;
 
   /// Newest first. Empty for a peak nobody has climbed yet.
   final List<Climb> climbs;
 
+  /// What sharing this peak would send, or null while it is unclimbed and
+  /// there is nothing to send.
+  final ShareCard? card;
+
   @override
   Widget build(BuildContext context) {
     final text = context.cairnText;
     final jumpOff = peak.jumpOffLabel;
+    final ShareCard? shareable = card;
 
     return Scaffold(
-      // Bare but for the way out: over the cream ground the band carries nothing
-      // else. E2 replaces it with the photo hero and the frosted sheet over it,
-      // and takes the same control along.
-      appBar: AppBar(leading: const CairnBackButton()),
+      // The way out, and on a climbed peak the way to send it. Over the cream
+      // ground the band carries nothing else. E2 replaces it with the photo hero
+      // and the frosted sheet over it, and takes both controls along.
+      appBar: AppBar(
+        leading: const CairnBackButton(),
+        actions: <Widget>[if (shareable != null) _ShareAction(card: shareable)],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -164,6 +183,52 @@ class _MarkClimbedAction extends StatelessWidget {
         mountainId: peak.id,
         mountainName: peak.name,
       ),
+    );
+  }
+}
+
+/// The way to send this peak to somebody, on the peaks the user has climbed.
+///
+/// **This is the app's one share entry point, and it is here rather than on the
+/// badges screen, on climb detail, or on the moment a badge unlocks.**
+///
+/// The badges grid was the obvious candidate and it is the wrong shape. Two
+/// thirds of its tiles cannot be shared: a locked one has nothing behind it,
+/// and a milestone means nothing outside the app, since "Three peaks" read by
+/// somebody who has never opened Cairn is a claim about a private scoreboard. A
+/// grid where some tiles answer a tap and most do not is a worse screen than
+/// one where none of them do.
+///
+/// Climb detail is unambiguous about a date and loses on the fact it holds: a
+/// second trip up Batulao is a climb and is not an achievement, so the tally
+/// would be wrong on it. It is also three taps from the list.
+///
+/// The unlock moment is the strongest feeling and the weakest control. It
+/// passes. Miss the snack bar and the thing can never be shared again, which
+/// makes an achievement's only exit a four-second window.
+///
+/// So it sits on the peak, one tap from the list, beside the action that
+/// created it. In the bar rather than in the body, because the design's own
+/// open question already calls this screen's layout overloaded, and a second
+/// full-width button under Mark climbed would be an answer to that question
+/// nobody has agreed on.
+class _ShareAction extends StatelessWidget {
+  const _ShareAction({required this.card});
+
+  final ShareCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => ShareCardSheet.show(context, card: card),
+      icon: const Icon(Icons.share_rounded),
+      // Its own colour and size, like the back arrow beside it, so it reads the
+      // same once the bar becomes a photo hero.
+      color: context.cairnColors.ink,
+      iconSize: CairnSize.navIcon,
+      // Says which thing is being shared. A bare share glyph in a bar is the
+      // one control on this screen with no words next to it.
+      tooltip: 'Share this peak',
     );
   }
 }

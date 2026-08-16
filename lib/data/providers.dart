@@ -10,11 +10,16 @@ import 'database/daos/mountain_dao.dart';
 import 'database/database.dart';
 import 'photos/photo_picker.dart';
 import 'photos/photo_store.dart';
+import 'share/share_sheet.dart';
 
 /// The photo types travel with their providers, for the same reason the row
 /// types do: a widget cannot render a stored photo without naming them.
 export 'photos/photo_picker.dart' show PhotoPicker;
 export 'photos/photo_store.dart' show PhotoStore;
+
+/// The share seam travels the same way, so a test can stand in for the
+/// platform without naming a file under `data/share/`.
+export 'share/share_sheet.dart' show ShareSheet;
 
 /// The three row types, re-exported.
 ///
@@ -133,4 +138,10 @@ final photoStoreProvider = Provider<PhotoStore>(
 /// test on any device can tap another process's UI.
 final photoPickerProvider = Provider<PhotoPicker>(
   (ref) => const SystemPhotoPicker(),
+);
+
+/// The system share sheet, behind a seam for the same reason as the picker: it
+/// is another process, and no test can tap it or read what it was handed.
+final shareSheetProvider = Provider<ShareSheet>(
+  (ref) => const SystemShareSheet(),
 );
