@@ -24,6 +24,15 @@ export 'photos/photo_store.dart' show PhotoStore;
 /// one door into the data layer.
 export 'database/database.dart' show Achievement, Climb, Mountain;
 
+/// [AchievementType] travels the same way, and it has to.
+///
+/// A badge row means nothing without it: the screen cannot tell a peak badge
+/// from a milestone, or one milestone from another, and telling them apart is
+/// the whole of what the badges grid draws. It is declared in
+/// `database/tables/achievements.dart`, which the layer rule puts out of a
+/// widget's reach, so the door is here.
+export 'database/tables/achievements.dart' show AchievementType;
+
 /// The one database instance for the app.
 ///
 /// `driftDatabase` opens `cairn.sqlite` in the app documents directory. Tests

@@ -11,17 +11,25 @@ enum BadgeTileState {
   /// Brand fill, onBrand glyph. A per-mountain badge that has been earned.
   unlocked,
 
-  /// Gold fill. Reserved for the three milestones: first climb, five peaks,
-  /// all six.
+  /// Gold fill. Reserved for the three milestones: first climb, three peaks,
+  /// all peaks. T18 respaced the middle tier, and gold is still the one colour
+  /// in the app that is not green.
   unlockedMilestone,
 }
 
 /// One cell in the badge grid: a circular glyph disc with a label under it.
 ///
-/// Sizes to its parent, so the badges screen owns the grid. With a caption it
-/// measures 144dp tall: a 44 disc, a label that may take two lines, and the
-/// caption. A grid that hands it less overflows, so on a 360dp phone at 3-up
-/// keep `childAspectRatio` at or below 0.68.
+/// Sizes to its parent in width and to its own content in height, so the badges
+/// screen owns the grid. Give it a row that measures itself, an `IntrinsicHeight`
+/// over a `Row` of `Expanded`s, rather than a `GridView` with a
+/// `childAspectRatio`. An aspect ratio is a guess about how long the strings
+/// are, and this tile carries two that a caller cannot bound: a peak name the
+/// user typed, and the sentence saying how to earn the badge.
+///
+/// Neither string is ever truncated. Both were capped with an ellipsis when T9
+/// built this, which no caller noticed because the gallery only ever passed it
+/// short ones. T19 gave it real content and the cap had to go: an unlock
+/// condition that stops mid-sentence is exactly the tile nobody can act on.
 class BadgeTile extends StatelessWidget {
   const BadgeTile({
     required this.label,
@@ -36,7 +44,8 @@ class BadgeTile extends StatelessWidget {
   final IconData icon;
   final BadgeTileState state;
 
-  /// Small line under the label, e.g. the unlock date.
+  /// Small line under the label: the day it was earned, or, while it is locked,
+  /// the one sentence saying how to earn it. Wraps to as many lines as it needs.
   final String? caption;
 
   final VoidCallback? onTap;
@@ -105,24 +114,19 @@ class BadgeTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: CairnSpace.x8),
+                // No maxLines and no overflow on either of these. The defaults
+                // wrap and never ellipsize, and setting anything here would
+                // only take that away.
                 Text(
                   label,
                   textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                   style: text.button.copyWith(
                     color: _isLocked ? colors.inkMuted : colors.ink,
                   ),
                 ),
                 if (caption != null && caption!.trim().isNotEmpty) ...[
                   const SizedBox(height: CairnSpace.x4),
-                  Text(
-                    caption!,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: text.meta,
-                  ),
+                  Text(caption!, textAlign: TextAlign.center, style: text.meta),
                 ],
               ],
             ),

@@ -21,7 +21,9 @@
 import 'package:cairn/app/app.dart';
 import 'package:cairn/app/router.dart';
 import 'package:cairn/data/database/daos/achievement_dao.dart';
-import 'package:cairn/data/database/tables/achievements.dart';
+// AchievementType comes through providers.dart, which re-exports it so the
+// badges screen can name a milestone. Naming the table file as well is the same
+// symbol imported twice.
 import 'package:cairn/data/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
