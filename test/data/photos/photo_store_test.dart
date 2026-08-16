@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:cairn/data/photos/photo_cap.dart';
 import 'package:cairn/data/photos/photo_filename.dart';
 import 'package:cairn/data/photos/photo_store.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 
 import '../../helpers/photo_fixtures.dart';
 
@@ -173,6 +176,223 @@ void main() {
     expect(await store.resolve(filename), stored(filename).path);
   });
 
+  group('the cap on the way in', () {
+    /// A photograph where the picker would have left one.
+    File writePhotograph(
+      String name, {
+      required int width,
+      required int height,
+      int orientation = 1,
+    }) {
+      final File file = File('${picked.path}${Platform.pathSeparator}$name');
+      file.writeAsBytesSync(
+        photographBytes(width: width, height: height, orientation: orientation),
+      );
+      return file;
+    }
+
+    test('a camera photo lands inside the cap', () async {
+      final File source = writePhotograph(
+        'IMG_0431.jpg',
+        width: 3000,
+        height: 2000,
+      );
+
+      final String filename = await store.copyIn(source.path);
+
+      final img.Image saved = img.decodeImage(
+        stored(filename).readAsBytesSync(),
+      )!;
+      expect(saved.width, photoLongEdgeCap);
+      expect(stored(filename).lengthSync(), lessThan(source.lengthSync()));
+      expect(isBarePhotoFilename(filename), isTrue);
+    });
+
+    test('a small photo is stored byte for byte', () async {
+      final File source = writePhotograph(
+        'IMG_0432.jpg',
+        width: 800,
+        height: 600,
+      );
+
+      final String filename = await store.copyIn(source.path);
+
+      expect(stored(filename).readAsBytesSync(), source.readAsBytesSync());
+    });
+
+    test('a sideways photo is stored upright', () async {
+      final File source = writePhotograph(
+        'IMG_0433.jpg',
+        width: 3000,
+        height: 2000,
+        orientation: 6,
+      );
+
+      final String filename = await store.copyIn(source.path);
+
+      final img.Image saved = img.decodeImage(
+        stored(filename).readAsBytesSync(),
+      )!;
+      expect(saved.height, greaterThan(saved.width));
+      expect(isCornerMark(saved, saved.width - 40, 40), isTrue);
+    });
+  });
+
+  group('the cap over photos already stored', () {
+    /// A photo already in the documents directory, as if E3 had put it there.
+    File writeStored(
+      String name, {
+      required int width,
+      required int height,
+      bool png = false,
+    }) {
+      final File file = stored(name);
+      file.writeAsBytesSync(
+        photographBytes(width: width, height: height, png: png),
+      );
+      return file;
+    }
+
+    test('rewrites an oversized photo under the name it already has', () async {
+      final File photo = writeStored(
+        'climb_1_aaaaaaaa.jpg',
+        width: 3000,
+        height: 2000,
+      );
+      final int before = photo.lengthSync();
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(photo.existsSync(), isTrue, reason: 'same name, same file');
+      expect(photo.lengthSync(), lessThan(before));
+      expect(img.decodeImage(photo.readAsBytesSync())!.width, photoLongEdgeCap);
+      expect(report.scanned, 1);
+      expect(report.rewritten, 1);
+      expect(report.bytesBefore, before);
+      expect(report.bytesAfter, photo.lengthSync());
+    });
+
+    test('leaves a photo already inside the cap byte for byte', () async {
+      final File photo = writeStored(
+        'climb_2_bbbbbbbb.jpg',
+        width: 800,
+        height: 600,
+      );
+      final Uint8List before = photo.readAsBytesSync();
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(photo.readAsBytesSync(), before);
+      expect(report.rewritten, 0);
+      expect(report.bytesBefore, report.bytesAfter);
+    });
+
+    test('keeps a PNG a PNG, so the stored name stays true', () async {
+      // The reason no row has to change. What a climb holds is a filename,
+      // extension included, so the file is rewritten in the format it arrived
+      // in and the database never learns this happened.
+      final File photo = writeStored(
+        'climb_3_cccccccc.png',
+        width: 3000,
+        height: 2000,
+        png: true,
+      );
+
+      await store.capStoredPhotos();
+
+      expect(
+        img.findFormatForData(photo.readAsBytesSync()),
+        img.ImageFormat.png,
+      );
+    });
+
+    test('changes no filename at all', () async {
+      writeStored('climb_4_dddddddd.jpg', width: 3000, height: 2000);
+      writeStored('climb_5_eeeeeeee.jpg', width: 640, height: 480);
+      final List<String> before = _photoNamesIn(documents);
+
+      await store.capStoredPhotos();
+
+      expect(_photoNamesIn(documents), before);
+    });
+
+    test('leaves everything that is not a climb photo alone', () async {
+      final File database = stored('cairn.sqlite')
+        ..writeAsBytesSync(photographBytes(width: 3000, height: 2000));
+      final Uint8List before = database.readAsBytesSync();
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(database.readAsBytesSync(), before);
+      expect(report.scanned, 0);
+    });
+
+    test('runs once, not on every launch', () async {
+      writeStored('climb_6_ffffffff.jpg', width: 3000, height: 2000);
+
+      await store.capStoredPhotos();
+      final PhotoCapReport again = await store.capStoredPhotos();
+
+      expect(again.scanned, 0);
+    });
+
+    test('sweeps up a rewrite a crash interrupted', () async {
+      final File halfWritten = stored('.cairn-writing-climb_7_gggggggg.jpg')
+        ..writeAsBytesSync(<int>[1, 2, 3]);
+
+      await store.capStoredPhotos();
+
+      expect(halfWritten.existsSync(), isFalse);
+    });
+
+    test('a failed rewrite leaves the photograph exactly as it was', () async {
+      // The guarantee that matters most. A photo is rewritten beside itself and
+      // moved onto its own name, so a write that cannot finish never gets as
+      // far as touching the original. Proven by taking the directory's write
+      // permission away underneath a photo that the cap definitely wants to
+      // change.
+      final File photo = writeStored(
+        'climb_8_hhhhhhhh.jpg',
+        width: 3000,
+        height: 2000,
+      );
+      final Uint8List before = photo.readAsBytesSync();
+      addTearDown(() => Process.runSync('chmod', ['u+w', documents.path]));
+      Process.runSync('chmod', ['u-w', documents.path]);
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(photo.readAsBytesSync(), before, reason: 'the photo is untouched');
+      expect(img.decodeImage(photo.readAsBytesSync()), isNotNull);
+      expect(report.scanned, 1);
+      expect(report.rewritten, 0);
+    });
+
+    test('one unreadable photo does not stop the pass', () async {
+      stored('climb_9_iiiiiiii.jpg').writeAsBytesSync(<int>[0, 1, 2, 3]);
+      final File real = writeStored(
+        'climb_a_jjjjjjjj.jpg',
+        width: 3000,
+        height: 2000,
+      );
+      final int before = real.lengthSync();
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(real.lengthSync(), lessThan(before));
+      expect(report.scanned, 2);
+      expect(report.rewritten, 1);
+    });
+
+    test('an empty documents directory is not an error', () async {
+      documents.deleteSync(recursive: true);
+
+      final PhotoCapReport report = await store.capStoredPhotos();
+
+      expect(report.scanned, 0);
+    });
+  });
+
   test('a store pointed somewhere else resolves the same name there', () async {
     // What a reinstall does, in one line. The name is unchanged and the answer
     // moves with the directory, because the directory is asked for on the call
@@ -190,3 +410,14 @@ void main() {
     );
   });
 }
+
+/// The climb photos in [directory] by name, sorted, so a test can say nothing
+/// was renamed. The pass leaves a marker of its own next to them, which is not
+/// a photo and not something a row points at.
+List<String> _photoNamesIn(Directory directory) =>
+    directory
+        .listSync()
+        .map((e) => e.path.split(Platform.pathSeparator).last)
+        .where((name) => name.startsWith('climb_'))
+        .toList()
+      ..sort();

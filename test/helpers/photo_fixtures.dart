@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:cairn/data/providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 
 /// A throwaway directory that stands in for the app documents directory, gone
 /// again when the test ends.
@@ -53,6 +55,69 @@ File writePickedFile(Directory directory, String name) {
   final File file = File('${directory.path}${Platform.pathSeparator}$name');
   file.writeAsBytesSync(List<int>.filled(64, 7));
   return file;
+}
+
+/// A photograph, at whatever size the test needs one.
+///
+/// Real image bytes rather than the stand-in above, because the cap decodes
+/// what it is given and a test about pixels has to hand it some. The picture is
+/// a corner mark on a plain ground: one red block in the top left, so a test
+/// can say which way up the result came out, and enough noise everywhere else
+/// that JPEG cannot compress it away to nothing.
+///
+/// [orientation] writes the EXIF tag a phone held sideways writes, and writes a
+/// real one: the pixels stay the way they are given and the tag says which way
+/// up to show them, which is exactly what comes off a camera. 1 is upright, and
+/// 6 is the common one, the phone turned a quarter turn.
+Uint8List photographBytes({
+  required int width,
+  required int height,
+  int orientation = 1,
+  bool png = false,
+}) {
+  final img.Image image = img.Image(width: width, height: height);
+
+  // Deterministic noise. A flat fill would encode to a few hundred bytes and a
+  // size comparison against it would prove nothing about a photograph.
+  var seed = 1;
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      final int n = seed >> 16 & 0x3f;
+      image.setPixelRgb(x, y, 40 + n, 90 + n, 150 + n);
+    }
+  }
+
+  final int markWidth = width ~/ 4;
+  final int markHeight = height ~/ 4;
+  for (int y = 0; y < markHeight; y++) {
+    for (int x = 0; x < markWidth; x++) {
+      image.setPixelRgb(x, y, 220, 30, 30);
+    }
+  }
+
+  if (orientation != 1) image.exif.imageIfd.orientation = orientation;
+
+  return png ? img.encodePng(image) : img.encodeJpg(image, quality: 95);
+}
+
+/// The size a decoder reads out of [bytes] without unpacking the picture.
+///
+/// The header carries the pixels as they are stored, before any EXIF tag has
+/// been applied. Comparing it against the size the same bytes decode to is how
+/// a test tells an upright photo from one carrying an instruction to turn.
+String storedSizeOf(Uint8List bytes) {
+  final img.DecodeInfo info = img
+      .findDecoderForData(bytes)!
+      .startDecode(bytes)!;
+  return '${info.width}x${info.height}';
+}
+
+/// True when the pixel at [x], [y] is the red corner mark rather than the
+/// ground it sits on.
+bool isCornerMark(img.Image image, int x, int y) {
+  final img.Pixel pixel = image.getPixel(x, y);
+  return pixel.r > 150 && pixel.g < 100 && pixel.b < 100;
 }
 
 /// The system picker, stood in for.
