@@ -5,6 +5,7 @@ import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
 import 'package:cairn/data/providers.dart';
+import 'package:cairn/shared/widgets/cairn_mark.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
 import 'package:cairn/shared/widgets/pill_nav.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,6 @@ import '../../helpers/test_database.dart';
 void main() {
   const climbedName = 'Mt. Batulao';
   const unclimbedName = 'Mt. Daraitan';
-  const climbedMark = Icons.terrain_rounded;
 
   late AppDatabase db;
   late MountainDao mountains;
@@ -89,7 +89,7 @@ void main() {
 
     // The three signals the design names, read off the cards themselves.
     expect(
-      find.descendant(of: cardFor(climbedName), matching: find.byIcon(climbedMark)),
+      find.descendant(of: cardFor(climbedName), matching: find.byType(CairnMark)),
       findsOneWidget,
     );
     expect(
@@ -103,7 +103,7 @@ void main() {
     expect(
       find.descendant(
         of: cardFor(unclimbedName),
-        matching: find.byIcon(climbedMark),
+        matching: find.byType(CairnMark),
       ),
       findsNothing,
     );
@@ -124,7 +124,7 @@ void main() {
     );
 
     // One climb, one climbed card. The other five stay as they were.
-    expect(find.byIcon(climbedMark), findsOneWidget);
+    expect(find.byType(CairnMark), findsOneWidget);
 
     await disposeApp(tester);
   });
@@ -132,7 +132,7 @@ void main() {
   testWidgets('every card is unclimbed while the log is empty', (tester) async {
     await pumpApp(tester, db);
 
-    expect(find.byIcon(climbedMark), findsNothing);
+    expect(find.byType(CairnMark), findsNothing);
     expect(climbedFlag(tester, climbedName), isFalse);
 
     await disposeApp(tester);

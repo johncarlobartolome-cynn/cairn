@@ -13,8 +13,10 @@ import 'package:flutter/services.dart';
 import '../app/theme/theme.dart';
 import '../app/theme/tokens.dart';
 import '../shared/extensions/theme_context.dart';
+import '../shared/widgets/badge_disc.dart';
 import '../shared/widgets/badge_tile.dart';
 import '../shared/widgets/cairn_button.dart';
+import '../shared/widgets/cairn_mark.dart';
 import '../shared/widgets/filter_pill_row.dart';
 import '../shared/widgets/frosted_sheet.dart';
 import '../shared/widgets/meta_row.dart';
@@ -378,33 +380,70 @@ class _BadgeGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 3,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: CairnSpace.x12,
-      crossAxisSpacing: CairnSpace.x12,
-      // BadgeTile needs about 150dp of height at 3-up grid width.
-      childAspectRatio: 0.66,
+    // All four cases, because there are four: two kinds crossed with earned and
+    // not. The catalogue carried three until T22, which is how a locked
+    // milestone went unnoticed drawing as a locked peak badge in another hat.
+    //
+    // Two to a row, measured rather than given a `childAspectRatio`, which is
+    // both what the real grid does and what stops a caption wrapping to a
+    // fourth line from overflowing the cell.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        BadgeTile(
-          label: 'Mt. Pulag',
-          icon: Icons.terrain_rounded,
-          state: BadgeTileState.unlocked,
-          caption: '12 Jul',
-          onTap: () {},
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: BadgeTile(
+                  label: 'Mt. Pulag',
+                  glyph: const CairnMark(),
+                  kind: BadgeKind.peak,
+                  state: BadgeTileState.unlocked,
+                  caption: '12 Jul',
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: CairnSpace.cardGap),
+              const Expanded(
+                child: BadgeTile(
+                  label: 'Mt. Apo',
+                  glyph: CairnMark(),
+                  kind: BadgeKind.peak,
+                  state: BadgeTileState.locked,
+                  caption: 'Climb it.',
+                ),
+              ),
+            ],
+          ),
         ),
-        const BadgeTile(
-          label: 'Mt. Apo',
-          icon: Icons.terrain_rounded,
-          state: BadgeTileState.locked,
-        ),
-        BadgeTile(
-          label: 'First climb',
-          icon: Icons.workspace_premium_rounded,
-          state: BadgeTileState.unlockedMilestone,
-          caption: '12 Jul',
-          onTap: () {},
+        const SizedBox(height: CairnSpace.cardGap),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: BadgeTile(
+                  label: 'First climb',
+                  glyph: const Icon(Icons.workspace_premium_rounded),
+                  kind: BadgeKind.milestone,
+                  state: BadgeTileState.unlocked,
+                  caption: '12 Jul',
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: CairnSpace.cardGap),
+              const Expanded(
+                child: BadgeTile(
+                  label: 'Three peaks',
+                  glyph: Icon(Icons.filter_hdr_rounded),
+                  kind: BadgeKind.milestone,
+                  state: BadgeTileState.locked,
+                  caption: 'Climb three different peaks.',
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -468,7 +507,7 @@ class _ControlsDemo extends StatelessWidget {
       children: [
         CairnButton(
           label: 'Mark climbed',
-          icon: Icons.terrain_rounded,
+          glyph: const CairnMark(),
           onPressed: () {},
         ),
         const SizedBox(height: CairnSpace.x8),

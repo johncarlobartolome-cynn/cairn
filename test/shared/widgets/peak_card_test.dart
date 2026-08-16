@@ -1,4 +1,5 @@
 import 'package:cairn/app/theme/tokens.dart';
+import 'package:cairn/shared/widgets/cairn_mark.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +10,6 @@ import '../../helpers/pump_widget.dart';
 /// rather than eyeballed. Three signals carry it: the saturation filter, the
 /// name's colour, and the mark.
 void main() {
-  const climbedIcon = Icons.terrain_rounded;
 
   Color? nameColour(WidgetTester tester, String name) =>
       tester.widget<Text>(find.text(name)).style?.color;
@@ -27,7 +27,7 @@ void main() {
       );
 
       expect(find.text('Mt. Pulag'), findsOneWidget);
-      expect(find.byIcon(climbedIcon), findsOneWidget);
+      expect(find.byType(CairnMark), findsOneWidget);
       // No filter wrapper at all, so a real photo comes through untouched.
       expect(find.byType(ColorFiltered), findsNothing);
       expect(nameColour(tester, 'Mt. Pulag'), CairnPalette.light.ink);
@@ -63,7 +63,7 @@ void main() {
       );
 
       expect(find.text('Mt. Apo'), findsOneWidget);
-      expect(find.byIcon(climbedIcon), findsNothing);
+      expect(find.byType(CairnMark), findsNothing);
       expect(find.byType(ColorFiltered), findsOneWidget);
       expect(nameColour(tester, 'Mt. Apo'), CairnPalette.light.inkMuted);
 

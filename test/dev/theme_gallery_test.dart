@@ -32,7 +32,7 @@ void main() {
     expect(find.byType(CairnButton), findsNWidgets(2));
     expect(find.byType(PeakCard), findsNWidgets(2));
     expect(find.byType(StatTile), findsNWidgets(4));
-    expect(find.byType(BadgeTile), findsNWidgets(3));
+    expect(find.byType(BadgeTile), findsNWidgets(4));
     expect(find.byType(FrostedSheet), findsOneWidget);
     expect(find.byType(PillNav), findsOneWidget);
     expect(tester.takeException(), isNull);

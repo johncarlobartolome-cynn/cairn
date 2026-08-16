@@ -214,7 +214,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
               const SizedBox(height: CairnSpace.x24),
               CairnButton(
                 label: 'Save climb',
-                icon: Icons.check_rounded,
+                glyph: const Icon(Icons.check_rounded),
                 busy: saving,
                 onPressed: _save,
               ),

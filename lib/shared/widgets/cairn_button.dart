@@ -17,7 +17,7 @@ class CairnButton extends StatelessWidget {
   const CairnButton({
     required this.label,
     required this.onPressed,
-    this.icon,
+    this.glyph,
     this.busy = false,
     this.expand = true,
     super.key,
@@ -31,7 +31,11 @@ class CairnButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   /// Optional leading glyph. A spinner takes this slot while [busy].
-  final IconData? icon;
+  ///
+  /// A widget rather than an [IconData], because the app's own mark is painted
+  /// rather than looked up in a font. Size and colour arrive through an
+  /// [IconTheme], so a caller passes a bare `Icon(...)` or a bare `CairnMark()`.
+  final Widget? glyph;
 
   /// Work is in flight. The button keeps its fill so it still reads as the
   /// primary action, shows a spinner, and ignores taps, so a second press
@@ -79,8 +83,11 @@ class CairnButton extends StatelessWidget {
               ),
             ),
             const SizedBox(width: CairnSpace.x8),
-          ] else if (icon != null) ...[
-            Icon(icon, size: CairnSize.icon),
+          ] else if (glyph != null) ...[
+            IconTheme.merge(
+              data: const IconThemeData(size: CairnSize.icon),
+              child: glyph!,
+            ),
             const SizedBox(width: CairnSpace.x8),
           ],
           Flexible(child: Text(label)),

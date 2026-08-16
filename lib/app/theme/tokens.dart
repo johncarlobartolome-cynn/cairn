@@ -241,6 +241,29 @@ abstract final class CairnSize {
   static const double climbPhotoAspect = 4 / 3;
 }
 
+/// The two badge silhouettes, and the numbers that make them tell apart.
+///
+/// **A badge's type is carried by its outline, not by its fill.** Until T22 a
+/// milestone and a peak badge were the same 44dp circle and differed only in
+/// colour, gold against green. Around one man in twelve has some form of
+/// red-green colour blindness and loses that distinction completely, and a
+/// palette edit could have erased it for everybody without a test noticing.
+///
+/// So a peak badge keeps the plain circle the spec names, and a milestone takes
+/// a scalloped seal. `test/a11y/badge_greyscale_test.dart` renders the grid,
+/// throws the colour away, and measures the two silhouettes against each other.
+abstract final class CairnBadge {
+  /// Bumps around a milestone seal. Ten puts roughly 14dp of perimeter in each
+  /// one at the 44dp badge size, which is wide enough to read as a scallop
+  /// rather than as a rough edge.
+  static const int sealLobes = 10;
+
+  /// How deep a valley cuts, as a fraction of the radius. At 0.16 a 44dp seal
+  /// wobbles between 22 and 18.5dp, so the silhouette differs from a circle
+  /// over about a sixth of the disc's area.
+  static const double sealDepth = 0.16;
+}
+
 /// The soft, wide, green-tinted card shadow. No hard drop shadows anywhere.
 abstract final class CairnShadow {
   static const double blur = 24;

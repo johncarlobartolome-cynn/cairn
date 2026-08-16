@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
+import '../../shared/widgets/badge_disc.dart';
 import '../../shared/widgets/badge_tile.dart';
+import '../../shared/widgets/cairn_mark.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/pill_nav.dart';
 import '../../shared/widgets/section_label.dart';
@@ -196,12 +198,11 @@ class _Tile extends StatelessWidget {
 
     return BadgeTile(
       label: badge.name,
-      icon: _glyphFor(badge),
-      state: switch (badge) {
-        BadgeView(isUnlocked: false) => BadgeTileState.locked,
-        BadgeView(isMilestone: true) => BadgeTileState.unlockedMilestone,
-        _ => BadgeTileState.unlocked,
-      },
+      glyph: _glyphFor(badge),
+      kind: badge.isMilestone ? BadgeKind.milestone : BadgeKind.peak,
+      state: badge.isUnlocked
+          ? BadgeTileState.unlocked
+          : BadgeTileState.locked,
       // Earned: the day it fired. Locked: what to do about it. Each state
       // shows the one line that is worth reading in that state.
       caption: unlockedAt == null ? badge.condition : climbDayLabel(unlockedAt),
@@ -212,15 +213,19 @@ class _Tile extends StatelessWidget {
 /// A glyph per badge, all four distinct so the grid does not read as one shape
 /// repeated.
 ///
-/// Peak badges take the same stand-in the climbed mark uses on a peak card. See
-/// the TODO in `peak_card.dart`: a custom three-stone cairn replaces both.
-IconData _glyphFor(BadgeView badge) => switch (badge.milestone) {
-  AchievementType.firstClimb => Icons.flag_rounded,
-  AchievementType.threePeaks => Icons.filter_hdr_rounded,
-  AchievementType.allPeaks => Icons.workspace_premium_rounded,
+/// The glyph is the second cue, not the first. What separates a milestone from a
+/// peak badge is the shape of the disc it sits in, because a glyph at 22dp is
+/// small enough that two of these were mistaken for each other: "Three peaks"
+/// drew a mountain range and a peak badge drew a mountain, and only the fill
+/// colour was left to tell them apart. A peak badge now carries [CairnMark], a
+/// stack of stones, which is not a mountain in any light.
+Widget _glyphFor(BadgeView badge) => switch (badge.milestone) {
+  AchievementType.firstClimb => const Icon(Icons.flag_rounded),
+  AchievementType.threePeaks => const Icon(Icons.filter_hdr_rounded),
+  AchievementType.allPeaks => const Icon(Icons.workspace_premium_rounded),
   // null is a peak badge. perMountain never reaches here: it is a row type, and
   // milestoneOrder leaves it out.
-  _ => Icons.terrain_rounded,
+  _ => const CairnMark(),
 };
 
 /// The screen's one non-grid state, centred and clear of the nav.

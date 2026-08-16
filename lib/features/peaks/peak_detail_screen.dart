@@ -8,6 +8,7 @@ import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
 import '../../shared/widgets/cairn_back_button.dart';
 import '../../shared/widgets/cairn_button.dart';
+import '../../shared/widgets/cairn_mark.dart';
 import '../../shared/widgets/empty_state_page.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
@@ -175,9 +176,8 @@ class _MarkClimbedAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return CairnButton(
       label: 'Mark climbed',
-      // The same stand-in glyph the climbed mark uses on a peak card. See the
-      // TODO in peak_card.dart: a custom three-stone cairn replaces both.
-      icon: Icons.terrain_rounded,
+      // The app's own mark: the same one the card takes once this is pressed.
+      glyph: const CairnMark(),
       onPressed: () => MarkClimbedSheet.show(
         context,
         mountainId: peak.id,

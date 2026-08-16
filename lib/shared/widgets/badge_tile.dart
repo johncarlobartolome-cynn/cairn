@@ -2,22 +2,29 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
 import '../extensions/theme_context.dart';
+import 'badge_disc.dart';
 
-/// How a [BadgeTile] draws its glyph disc.
+/// Whether a [BadgeTile] has been earned.
+///
+/// **Two values, and it used to have three.** `unlockedMilestone` sat here until
+/// T22, which made the enum carry two unrelated facts and left one of the four
+/// real cases unsayable: a milestone still to earn had no state of its own, so
+/// it drew as a plain locked circle and a reader had no way to tell it from a
+/// peak still to earn. Kind moved out to [BadgeKind] and this went back to
+/// saying the one thing its name says.
 enum BadgeTileState {
   /// 1px outline, muted glyph. Nothing earned yet.
   locked,
 
-  /// Brand fill, onBrand glyph. A per-mountain badge that has been earned.
+  /// Filled. Brand for a peak, gold for a milestone, per [BadgeDisc].
   unlocked,
-
-  /// Gold fill. Reserved for the three milestones: first climb, three peaks,
-  /// all peaks. T18 respaced the middle tier, and gold is still the one colour
-  /// in the app that is not green.
-  unlockedMilestone,
 }
 
-/// One cell in the badge grid: a circular glyph disc with a label under it.
+/// One cell in the badge grid: a glyph disc with a label under it.
+///
+/// The disc is a circle for a peak badge and a scalloped seal for a milestone,
+/// which is [BadgeDisc]'s job and the reason the two kinds survive being read in
+/// greyscale.
 ///
 /// Sizes to its parent in width and to its own content in height, so the badges
 /// screen owns the grid. Give it a row that measures itself, an `IntrinsicHeight`
@@ -33,7 +40,8 @@ enum BadgeTileState {
 class BadgeTile extends StatelessWidget {
   const BadgeTile({
     required this.label,
-    required this.icon,
+    required this.glyph,
+    required this.kind,
     required this.state,
     this.caption,
     this.onTap,
@@ -41,7 +49,14 @@ class BadgeTile extends StatelessWidget {
   });
 
   final String label;
-  final IconData icon;
+
+  /// Sized and coloured by the disc, so callers pass a bare `Icon(...)` or a
+  /// bare `CairnMark()`.
+  final Widget glyph;
+
+  /// What the badge is for, which decides the disc's silhouette.
+  final BadgeKind kind;
+
   final BadgeTileState state;
 
   /// Small line under the label: the day it was earned, or, while it is locked,
@@ -56,17 +71,6 @@ class BadgeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.cairnColors;
     final text = context.cairnText;
-
-    final (Color discFill, Color glyph) = switch (state) {
-      BadgeTileState.locked => (Colors.transparent, colors.inkMuted),
-      BadgeTileState.unlocked => (colors.brand, colors.onBrand),
-      // Gold is light in both themes, so the glyph on it takes the dark side of
-      // the palette rather than onBrand, which flips with brightness.
-      BadgeTileState.unlockedMilestone => (
-          colors.gold,
-          colors.isDark ? colors.ground : colors.ink,
-        ),
-    };
 
     return Semantics(
       button: onTap != null,
@@ -94,25 +98,7 @@ class BadgeTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: CairnSize.iconBadge,
-                  height: CairnSize.iconBadge,
-                  decoration: BoxDecoration(
-                    color: discFill,
-                    shape: BoxShape.circle,
-                    border: _isLocked
-                        ? Border.all(
-                            color: colors.inkMuted,
-                            width: CairnSize.hairline,
-                          )
-                        : null,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: CairnSize.iconBadgeGlyph,
-                    color: glyph,
-                  ),
-                ),
+                BadgeDisc(kind: kind, unlocked: !_isLocked, glyph: glyph),
                 const SizedBox(height: CairnSpace.x8),
                 // No maxLines and no overflow on either of these. The defaults
                 // wrap and never ellipsize, and setting anything here would

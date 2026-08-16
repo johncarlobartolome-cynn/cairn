@@ -3,6 +3,7 @@ import 'package:cairn/app/theme/tokens.dart';
 import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
+import 'package:cairn/shared/widgets/badge_disc.dart';
 import 'package:cairn/shared/widgets/badge_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,16 +43,24 @@ void main() {
   BadgeTileState stateOf(WidgetTester tester, String label) =>
       tester.widget<BadgeTile>(tileFor(label)).state;
 
-  /// The glyph disc is the one circular decoration inside a tile, so its fill
-  /// is what a reader actually sees.
-  Color discFillOf(WidgetTester tester, String label) => tester
-      .widgetList<Container>(
-        find.descendant(of: tileFor(label), matching: find.byType(Container)),
-      )
-      .map((container) => container.decoration)
-      .whereType<BoxDecoration>()
-      .firstWhere((decoration) => decoration.shape == BoxShape.circle)
-      .color!;
+  BadgeKind kindOf(WidgetTester tester, String label) =>
+      tester.widget<BadgeTile>(tileFor(label)).kind;
+
+  /// The disc's decoration, which carries both of the things a reader sees: the
+  /// fill, and the outline the fill is poured into.
+  ShapeDecoration discOf(WidgetTester tester, String label) =>
+      tester
+              .widget<DecoratedBox>(
+                find.descendant(
+                  of: find.descendant(
+                    of: tileFor(label),
+                    matching: find.byType(BadgeDisc),
+                  ),
+                  matching: find.byType(DecoratedBox),
+                ),
+              )
+              .decoration
+          as ShapeDecoration;
 
   /// Opens `/badges` with one climb already logged, which unlocks that peak's
   /// badge and the first-climb milestone and leaves everything else locked.
@@ -72,8 +81,8 @@ void main() {
     expect(stateOf(tester, unclimbedName), BadgeTileState.locked);
 
     // Not just a different enum: a filled disc against an empty one.
-    expect(discFillOf(tester, climbedName), CairnPalette.light.brand);
-    expect(discFillOf(tester, unclimbedName), Colors.transparent);
+    expect(discOf(tester, climbedName).color, CairnPalette.light.brand);
+    expect(discOf(tester, unclimbedName).color, Colors.transparent);
 
     await disposeApp(tester);
   });
@@ -127,17 +136,41 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('a milestone reads as gold and a peak badge does not', (
+  testWidgets('a milestone takes a different shape, not just a different fill', (
     tester,
   ) async {
     await pumpAfterOneClimb(tester);
 
-    expect(stateOf(tester, 'First climb'), BadgeTileState.unlockedMilestone);
-    expect(discFillOf(tester, 'First climb'), CairnPalette.light.gold);
+    // Colour still separates them, and after T22 it is no longer doing it
+    // alone: the milestone's disc is a seal and the peak's is a circle, which
+    // is the half of the distinction that survives being read in greyscale.
+    // `test/a11y/badge_greyscale_test.dart` is where that gets measured.
+    expect(kindOf(tester, 'First climb'), BadgeKind.milestone);
+    expect(stateOf(tester, 'First climb'), BadgeTileState.unlocked);
+    expect(discOf(tester, 'First climb').color, CairnPalette.light.gold);
+    expect(discOf(tester, 'First climb').shape, isA<BadgeSealBorder>());
 
+    expect(kindOf(tester, climbedName), BadgeKind.peak);
     expect(stateOf(tester, climbedName), BadgeTileState.unlocked);
-    expect(discFillOf(tester, climbedName), isNot(CairnPalette.light.gold));
-    expect(discFillOf(tester, climbedName), CairnPalette.light.brand);
+    expect(discOf(tester, climbedName).color, CairnPalette.light.brand);
+    expect(discOf(tester, climbedName).shape, isA<CircleBorder>());
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a locked milestone keeps the seal a locked peak badge lacks', (
+    tester,
+  ) async {
+    await pumpApp(tester, db, location: CairnRoute.badges);
+
+    // The case the old three-value state enum could not say. Both are locked,
+    // both draw an outline in the same muted ink, and the shape is the only
+    // thing left telling a reader which is which.
+    expect(stateOf(tester, 'Three peaks'), BadgeTileState.locked);
+    expect(discOf(tester, 'Three peaks').shape, isA<BadgeSealBorder>());
+
+    expect(stateOf(tester, unclimbedName), BadgeTileState.locked);
+    expect(discOf(tester, unclimbedName).shape, isA<CircleBorder>());
 
     await disposeApp(tester);
   });

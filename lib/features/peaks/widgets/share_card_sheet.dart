@@ -141,7 +141,7 @@ class _ShareCardSheetState extends ConsumerState<ShareCardSheet> {
             const SizedBox(height: CairnSpace.x24),
             CairnButton(
               label: 'Share',
-              icon: Icons.share_rounded,
+              glyph: const Icon(Icons.share_rounded),
               busy: sharing,
               onPressed: _share,
             ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/tokens.dart';
 import '../../../shared/extensions/theme_context.dart';
+import '../../../shared/widgets/badge_disc.dart';
+import '../../../shared/widgets/cairn_mark.dart';
 import '../../../shared/widgets/meta_row.dart';
 import '../share_card.dart';
 
@@ -103,26 +105,15 @@ class _Signature extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.cairnColors;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: CairnSize.iconBadge,
-          height: CairnSize.iconBadge,
-          decoration: BoxDecoration(
-            color: colors.brand,
-            shape: BoxShape.circle,
-          ),
-          // The same stand-in the climbed mark and the peak badges use. See the
-          // TODO in peak_card.dart: a custom three-stone cairn replaces all of
-          // them at once.
-          child: Icon(
-            Icons.terrain_rounded,
-            size: CairnSize.iconBadgeGlyph,
-            color: colors.onBrand,
-          ),
+        // The app's mark on the app's own signature, which is what a stranger
+        // reading a shared card sees first.
+        const BadgeDisc(
+          kind: BadgeKind.peak,
+          unlocked: true,
+          glyph: CairnMark(),
         ),
         const SizedBox(width: CairnSpace.x12),
         // The section label's type role, drawn here rather than through

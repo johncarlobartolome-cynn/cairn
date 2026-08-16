@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme/tokens.dart';
 import '../extensions/theme_context.dart';
+import 'badge_disc.dart';
+import 'cairn_mark.dart';
 import 'meta_row.dart';
 
 /// A peak in the list: full-bleed photo inside a rounded card, name and meta
@@ -184,23 +186,15 @@ class _ClimbedMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.cairnColors;
-
-    return Container(
-      width: CairnSize.badgeMark,
-      height: CairnSize.badgeMark,
-      decoration: BoxDecoration(
-        color: colors.brand,
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        // TODO(design): stand-in glyph. Replace Icons.terrain_rounded with the
-        // custom three-stone cairn mark once it exists. Tracked as the "Cairn
-        // glyph" open question in the design spec.
-        Icons.terrain_rounded,
-        size: CairnSize.badgeMarkGlyph,
-        color: colors.onBrand,
-      ),
+    // The same disc a peak badge draws on the badges screen, which is the point:
+    // one earned peak, one mark, wherever it turns up. T22 drew the mark and
+    // closed the stand-in TODO that had sat here since T9.
+    return const BadgeDisc(
+      kind: BadgeKind.peak,
+      unlocked: true,
+      glyph: CairnMark(),
+      size: CairnSize.badgeMark,
+      glyphSize: CairnSize.badgeMarkGlyph,
     );
   }
 }
