@@ -1,10 +1,10 @@
 // Runs on a device through `flutter drive`, never under `flutter test`. Use
 // tool/screenshots.sh; it wires the driver that writes the PNGs to disk.
 //
-// One pass over every route in both themes, eight images. The app boots against
-// the real database in the app documents directory, so the screens show whatever
-// the app itself would show: today that means six seeded peaks, no climbs, and a
-// climb detail that honestly renders its not-found branch.
+// One pass over every route in both themes. The app boots against the real
+// database in the app documents directory, so the screens show whatever the app
+// itself would show: the six seeded peaks, and whatever climbs and photos are
+// actually logged on the device.
 
 import 'package:cairn/app/app.dart';
 import 'package:cairn/app/router.dart';
@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+
+import 'painted_photo_picker.dart';
 
 /// One image: a route, a theme, and the filename the driver writes.
 class _Shot {
@@ -27,10 +29,13 @@ class _Shot {
   final Future<void> Function(WidgetTester tester)? prepare;
 }
 
-/// Opens the mark-climbed sheet over peak detail and fills it in.
+/// Opens the mark-climbed sheet over peak detail, fills it in, and attaches a
+/// photo to it.
 ///
 /// Nothing is saved. The harness runs over the app's real database and a shot
-/// is not a reason to write a row into it.
+/// is not a reason to write a row into it. The photos clear up after themselves
+/// too: the draft deletes copies it was never told to keep, and the next shot
+/// pumping a fresh app is what disposes it.
 Future<void> _openFilledSheet(WidgetTester tester) async {
   await tester.tap(find.text('Mark climbed'));
   await tester.pumpAndSettle();
@@ -45,6 +50,11 @@ Future<void> _openFilledSheet(WidgetTester tester) async {
   // The device's own keyboard answers the focus, and it would cover the half of
   // the sheet the shot is for.
   FocusManager.instance.primaryFocus?.unfocus();
+  await tester.pumpAndSettle();
+
+  await tester.ensureVisible(find.text('Add photos'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Add photos'));
   await tester.pumpAndSettle();
 }
 
@@ -67,7 +77,15 @@ void main() {
 
     // One container for the whole run, so the app and this test share a single
     // database connection and the ids below are the ids on screen.
-    final container = ProviderContainer();
+    //
+    // The picker is stood in for because it is another process and no test can
+    // tap it. Everything the shot is of, the thumbnails and the copies behind
+    // them, is the app's own code.
+    final container = ProviderContainer(
+      overrides: <Override>[
+        photoPickerProvider.overrideWithValue(PaintedPhotoPicker(2)),
+      ],
+    );
     addTearDown(container.dispose);
 
     final peaks = await container.read(mountainDaoProvider).getAll();
@@ -79,11 +97,23 @@ void main() {
     }
     final int peakId = peaks.first.id;
 
-    // No climb exists yet, so id 1 misses and climb detail draws its not-found
-    // branch. That is the screen as it stands. When E3 starts writing climbs the
-    // harness picks up the real one with no edit here.
-    final climbs = await container.read(climbDaoProvider).watchAll().first;
-    final int climbId = climbs.isEmpty ? 1 : climbs.first.id;
+    // The most recently logged climb that has photographs on it, because that
+    // is the screen worth photographing. `getAll` orders by date, and several
+    // climbs on one day tie, so the id breaks the tie rather than SQLite's
+    // arbitrary ordering: a screenshot run should not photograph a different
+    // climb each time it is run.
+    //
+    // With no climbs at all, id 1 misses and climb detail draws its not-found
+    // branch, which is honestly the screen as it stands.
+    final climbs = await container.read(climbDaoProvider).getAll();
+    final withPhotos = climbs
+        .where((climb) => climb.photoFilenames.isNotEmpty)
+        .toList();
+    final pool = withPhotos.isEmpty ? climbs : withPhotos;
+    final int climbId = pool.fold<int>(
+      1,
+      (newest, climb) => climb.id > newest ? climb.id : newest,
+    );
 
     final shots = <_Shot>[
       for (final MapEntry<String, ThemeMode> theme in const {

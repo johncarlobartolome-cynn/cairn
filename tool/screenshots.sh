@@ -69,8 +69,12 @@ mkdir -p "$OUT_DIR"
 rm -f -- "$OUT_DIR"/*.png
 
 cd "$PROJECT_ROOT"
+# --keep-app-running or flutter drive uninstalls the app when it finishes, and
+# an uninstall takes cairn.sqlite and every climb photo with it. Harmless while
+# the harness only read; T17 gave the app data worth losing.
 if ! CAIRN_SCREENSHOT_DIR="$OUT_DIR" flutter drive \
   --device-id "$serial" \
+  --keep-app-running \
   --driver "$DRIVER" \
   --target "$TARGET"; then
   die "flutter drive failed. The output above says why."
