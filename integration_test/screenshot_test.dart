@@ -9,6 +9,7 @@
 import 'package:cairn/app/app.dart';
 import 'package:cairn/app/router.dart';
 import 'package:cairn/data/providers.dart';
+import 'package:cairn/features/peaks/peaks_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,6 +56,16 @@ Future<void> _openFilledSheet(WidgetTester tester) async {
   await tester.ensureVisible(find.text('Add photos'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Add photos'));
+  await tester.pumpAndSettle();
+}
+
+/// Taps the Climbed pill on the peaks list.
+///
+/// The filter is UI state and nothing is written, so this leaves the app's
+/// database exactly as it found it. The shot is of the grid answering a
+/// question, which is the whole of what T20 added.
+Future<void> _filterToClimbed(WidgetTester tester) async {
+  await tester.tap(find.text('Climbed'));
   await tester.pumpAndSettle();
 }
 
@@ -122,6 +133,12 @@ void main() {
       }.entries) ...<_Shot>[
         _Shot('peaks-${theme.key}', CairnRoute.peaks, theme.value),
         _Shot(
+          'peaks-climbed-${theme.key}',
+          CairnRoute.peaks,
+          theme.value,
+          prepare: _filterToClimbed,
+        ),
+        _Shot(
           'peak-detail-${theme.key}',
           CairnRoute.mountain(peakId),
           theme.value,
@@ -142,6 +159,13 @@ void main() {
     ];
 
     for (final _Shot shot in shots) {
+      // One container serves the whole run, so UI state set by a shot is still
+      // set for the next one. The peaks filter proved it: tapping Climbed for
+      // one image left every later peaks shot filtered, and the two dark images
+      // came out byte for byte identical. A shot has to be of the state it
+      // names, so the filter goes back to All before each one.
+      container.invalidate(peakFilterProvider);
+
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
