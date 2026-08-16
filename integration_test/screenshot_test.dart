@@ -59,6 +59,17 @@ Future<void> _openFilledSheet(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Opens the share sheet over peak detail, on a peak that has been climbed.
+///
+/// It stops at the preview. Tapping Share hands the picture to Android's own
+/// chooser, which is another process the framework cannot photograph, and the
+/// shot worth having is the card itself. The system sheet is proved separately
+/// with `adb screencap`.
+Future<void> _openShareCard(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.share_rounded));
+  await tester.pumpAndSettle();
+}
+
 /// Taps the Climbed pill on the peaks list.
 ///
 /// The filter is UI state and nothing is written, so this leaves the app's
@@ -117,6 +128,18 @@ void main() {
     // With no climbs at all, id 1 misses and climb detail draws its not-found
     // branch, which is honestly the screen as it stands.
     final climbs = await container.read(climbDaoProvider).getAll();
+
+    // The share control only exists on a peak that has been climbed, so the
+    // shot needs one. Failing here names the reason; a missing image would not.
+    if (climbs.isEmpty) {
+      throw StateError(
+        'No climb is logged on this device, so no peak has anything to share. '
+        'Mark a peak climbed in the app, then run this again.',
+      );
+    }
+    // Ordered by date descending, so this is the most recent climb's peak.
+    final int sharePeakId = climbs.first.mountainId;
+
     final withPhotos = climbs
         .where((climb) => climb.photoFilenames.isNotEmpty)
         .toList();
@@ -155,6 +178,12 @@ void main() {
           theme.value,
         ),
         _Shot('badges-${theme.key}', CairnRoute.badges, theme.value),
+        _Shot(
+          'share-card-${theme.key}',
+          CairnRoute.mountain(sharePeakId),
+          theme.value,
+          prepare: _openShareCard,
+        ),
       ],
     ];
 

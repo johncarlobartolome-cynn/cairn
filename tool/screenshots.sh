@@ -25,9 +25,9 @@ TARGET="integration_test/screenshot_test.dart"
 # integration_test/screenshot_test.dart is the source of truth for these names.
 # Listed again here so a rename fails the run instead of quietly shipping nine
 # fresh images and one stale tenth.
-EXPECTED="peaks-light peaks-climbed-light peak-detail-light mark-climbed-light climb-detail-light badges-light
-peaks-dark peaks-climbed-dark peak-detail-dark mark-climbed-dark climb-detail-dark badges-dark"
-EXPECTED_COUNT=12
+EXPECTED="peaks-light peaks-climbed-light peak-detail-light mark-climbed-light climb-detail-light badges-light share-card-light
+peaks-dark peaks-climbed-dark peak-detail-dark mark-climbed-dark climb-detail-dark badges-dark share-card-dark"
+EXPECTED_COUNT=14
 
 die() {
   echo "" >&2
