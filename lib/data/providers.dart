@@ -1,10 +1,20 @@
+import 'dart:io';
+
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'database/daos/achievement_dao.dart';
 import 'database/daos/climb_dao.dart';
 import 'database/daos/mountain_dao.dart';
 import 'database/database.dart';
+import 'photos/photo_picker.dart';
+import 'photos/photo_store.dart';
+
+/// The photo types travel with their providers, for the same reason the row
+/// types do: a widget cannot render a stored photo without naming them.
+export 'photos/photo_picker.dart' show PhotoPicker;
+export 'photos/photo_store.dart' show PhotoStore;
 
 /// The three row types, re-exported.
 ///
@@ -85,4 +95,33 @@ final climbedMountainIdsProvider = StreamProvider<Set<int>>(
 
 final achievementsProvider = StreamProvider<List<Achievement>>(
   (ref) => ref.watch(achievementDaoProvider).watchAll(),
+);
+
+/// Where the app's own files live: `cairn.sqlite` and every climb photo.
+///
+/// A provider that asks, rather than a string anybody can hold on to. The
+/// answer is only true for as long as this install lasts, and a widget that
+/// watches it is asking again on every build, which is exactly the behaviour
+/// the photo rule needs. Storing the answer next to a photo is how the photo
+/// gets lost.
+///
+/// Tests override it with a throwaway directory, which is what lets one prove
+/// a stored filename still renders after the directory underneath it moved.
+final documentsDirectoryProvider = FutureProvider<Directory>(
+  (ref) => getApplicationDocumentsDirectory(),
+);
+
+/// Copies picked photos into the documents directory and hands back the bare
+/// filename to store. See `photos/photo_filename.dart` for why that is the only
+/// thing allowed into the column.
+final photoStoreProvider = Provider<PhotoStore>(
+  (ref) => PhotoStore(
+    directory: () => ref.read(documentsDirectoryProvider.future),
+  ),
+);
+
+/// The system photo picker, behind a seam so a test can stand in for it. No
+/// test on any device can tap another process's UI.
+final photoPickerProvider = Provider<PhotoPicker>(
+  (ref) => const SystemPhotoPicker(),
 );

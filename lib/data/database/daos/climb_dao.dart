@@ -52,17 +52,24 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
   ///
   /// Nothing here is unique. A peak can be climbed as often as you like, and
   /// twice on the same day is a real answer rather than a duplicate.
+  ///
+  /// [photoFilenames] are bare filenames of files already copied into the
+  /// documents directory. Never paths: the column's converter refuses one, so
+  /// a caller that skipped the copy fails here and loudly, rather than storing
+  /// a photo that nobody can find after the next install.
   Future<int> logClimb({
     required int mountainId,
     required DateTime date,
     String? companions,
     String? notes,
+    List<String> photoFilenames = const <String>[],
   }) => add(
     ClimbsCompanion.insert(
       mountainId: mountainId,
       date: date,
       companions: Value(companions),
       notes: Value(notes),
+      photoFilenames: Value(photoFilenames),
     ),
   );
 

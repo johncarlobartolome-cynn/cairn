@@ -1,13 +1,21 @@
+import 'dart:io';
+
 import 'package:cairn/app/router.dart';
 import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
+import 'package:cairn/data/photos/photo_filename.dart';
+import 'package:cairn/data/providers.dart';
 import 'package:cairn/features/climbs/climb_facts.dart';
 import 'package:cairn/features/climbs/mark_climbed_sheet.dart';
+import 'package:cairn/features/climbs/widgets/climb_photo.dart';
+import 'package:cairn/features/climbs/widgets/climb_photo_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../helpers/photo_fixtures.dart';
 import '../../helpers/pump_app.dart';
 import '../../helpers/test_database.dart';
 
@@ -22,10 +30,22 @@ void main() {
   late ClimbDao climbs;
   late MountainDao mountains;
 
+  /// Stands in for the app documents directory, so a test can look at what the
+  /// picker actually copied.
+  late Directory documents;
+
+  /// Where the system picker would have left its temporary files.
+  late Directory picked;
+
+  late FakePhotoPicker picker;
+
   setUp(() {
     db = createTestDatabase();
     climbs = ClimbDao(db);
     mountains = MountainDao(db);
+    documents = createTempDirectory('documents');
+    picked = createTempDirectory('picked');
+    picker = FakePhotoPicker();
   });
 
   tearDown(() => db.close());
@@ -40,11 +60,42 @@ void main() {
 
   /// Opens peak detail and taps its primary action.
   Future<void> openSheet(WidgetTester tester, int mountainId) async {
-    await pumpApp(tester, db, location: CairnRoute.mountain(mountainId));
+    await pumpApp(
+      tester,
+      db,
+      location: CairnRoute.mountain(mountainId),
+      overrides: <Override>[
+        documentsDirectoryOverride(documents),
+        photoPickerProvider.overrideWithValue(picker),
+      ],
+    );
     await tester.tap(find.text('Mark climbed'));
     await tester.pumpAndSettle();
     expect(find.byType(MarkClimbedSheet), findsOneWidget);
   }
+
+  /// Taps Add photos and lets the copy finish.
+  ///
+  /// Copying is real disk work, which the fake clock a widget test runs on will
+  /// not advance. `runAsync` puts the pumps back on the real one.
+  Future<void> addPhotos(WidgetTester tester, List<String> names) async {
+    picker.paths = <String>[
+      for (final String name in names) writePickedFile(picked, name).path,
+    ];
+
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    await pumpRealAsync(tester);
+  }
+
+  /// The filenames sitting in the documents directory right now.
+  List<String> filesOnDisk() => <String>[
+    for (final FileSystemEntity entity in documents.listSync())
+      entity.path.split(Platform.pathSeparator).last,
+  ]..sort();
+
+  /// Lets fire-and-forget cleanup reach the disk before a test looks.
+  Future<void> letCleanupFinish(WidgetTester tester) =>
+      pumpRealAsync(tester);
 
   /// Taps Save and lets the write and the sheet's exit animation finish. The
   /// snack bar is still on screen when this returns.
@@ -213,6 +264,154 @@ void main() {
     );
     expect(paragraph.didExceedMaxLines, isFalse);
     expect(tester.takeException(), isNull);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('asks for photos, and starts with none', (tester) async {
+    await openSheet(tester, await pulagId());
+
+    expect(find.text('PHOTOS'), findsOneWidget);
+    expect(find.text(ClimbPhotoField.addLabel), findsOneWidget);
+    expect(find.byType(ClimbPhoto), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('shows what was picked before anything is saved', (tester) async {
+    await openSheet(tester, await pulagId());
+
+    await addPhotos(tester, <String>['IMG_0431.jpg', 'IMG_0432.jpg']);
+
+    expect(picker.openings, 1);
+    expect(find.byType(ClimbPhoto), findsNWidgets(2));
+    // The thumbnails are drawn from the copies, which is the same resolve path
+    // climb detail uses. What you see here is what the app will find later.
+    expect(filesOnDisk(), hasLength(2));
+    for (final ClimbPhoto photo
+        in tester.widgetList<ClimbPhoto>(find.byType(ClimbPhoto))) {
+      expect(isBarePhotoFilename(photo.filename), isTrue);
+      expect(filesOnDisk(), contains(photo.filename));
+    }
+
+    await disposeApp(tester);
+    await letCleanupFinish(tester);
+  });
+
+  testWidgets('one picked photo can be taken off again before saving', (
+    tester,
+  ) async {
+    await openSheet(tester, await pulagId());
+    await addPhotos(tester, <String>['IMG_0431.jpg', 'IMG_0432.jpg']);
+
+    final String dropped = tester
+        .widget<ClimbPhoto>(find.byType(ClimbPhoto).first)
+        .filename;
+
+    await tester.tap(find.byTooltip('Remove this photo').first);
+    await letCleanupFinish(tester);
+
+    expect(find.byType(ClimbPhoto), findsOneWidget);
+    expect(
+      tester.widget<ClimbPhoto>(find.byType(ClimbPhoto)).filename,
+      isNot(dropped),
+    );
+    // The copy goes with it. Nothing points at it, so leaving it would be
+    // litter that grows every time somebody changes their mind.
+    expect(filesOnDisk(), isNot(contains(dropped)));
+    expect(filesOnDisk(), hasLength(1));
+
+    await disposeApp(tester);
+    await letCleanupFinish(tester);
+  });
+
+  testWidgets('saves the filenames, and nothing that says where they live', (
+    tester,
+  ) async {
+    final int id = await pulagId();
+
+    await openSheet(tester, id);
+    await addPhotos(tester, <String>['IMG_0431.jpg', 'IMG_0432.png']);
+    await tapSave(tester);
+
+    final Climb saved = (await climbs.getAll()).single;
+    expect(saved.photoFilenames, hasLength(2));
+    for (final String name in saved.photoFilenames) {
+      expect(isBarePhotoFilename(name), isTrue, reason: name);
+      expect(name, isNot(contains(Platform.pathSeparator)));
+      expect(name, isNot(contains(documents.path)));
+      expect(name, isNot(contains(picked.path)));
+    }
+    // The files themselves are where the names say they are.
+    expect(filesOnDisk(), saved.photoFilenames.toList()..sort());
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a saved climb keeps its photos on disk', (tester) async {
+    await openSheet(tester, await pulagId());
+    await addPhotos(tester, <String>['IMG_0431.jpg']);
+    await tapSave(tester);
+    await letCleanupFinish(tester);
+
+    final Climb saved = (await climbs.getAll()).single;
+    expect(filesOnDisk(), saved.photoFilenames);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a sheet closed without saving leaves nothing behind', (
+    tester,
+  ) async {
+    // The cost of copying on the pick rather than on the save. Nothing points
+    // at these files, so they go when the sheet does.
+    await openSheet(tester, await pulagId());
+    await addPhotos(tester, <String>['IMG_0431.jpg', 'IMG_0432.jpg']);
+    expect(filesOnDisk(), hasLength(2));
+
+    // The barrier above the sheet, which is how a sheet is dismissed.
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+    await letCleanupFinish(tester);
+
+    expect(find.byType(MarkClimbedSheet), findsNothing);
+    expect(await climbs.getAll(), isEmpty);
+    expect(filesOnDisk(), isEmpty);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('the second sheet does not carry the first one\'s photos', (
+    tester,
+  ) async {
+    await openSheet(tester, await pulagId());
+    await addPhotos(tester, <String>['IMG_0431.jpg']);
+    await tapSave(tester);
+
+    await tester.tap(find.text('Mark climbed'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ClimbPhoto), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a picker that fails says so and leaves the sheet usable', (
+    tester,
+  ) async {
+    await openSheet(tester, await pulagId());
+    picker.failure = const FileSystemException('picker gave up');
+
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    await letCleanupFinish(tester);
+
+    expect(find.text(ClimbPhotoField.failureMessage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Save climb'), findsOneWidget);
+
+    // And the climb still saves, with no photos on it.
+    await tapSave(tester);
+    expect((await climbs.getAll()).single.photoFilenames, isEmpty);
 
     await disposeApp(tester);
   });

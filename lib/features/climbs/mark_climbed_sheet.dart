@@ -5,8 +5,10 @@ import '../../app/theme/tokens.dart';
 import '../../shared/extensions/theme_context.dart';
 import '../../shared/widgets/cairn_button.dart';
 import '../../shared/widgets/section_label.dart';
+import '../../shared/widgets/tap_field.dart';
 import 'climb_facts.dart';
 import 'climbs_providers.dart';
+import 'widgets/climb_photo_field.dart';
 
 /// How far back the date picker will go.
 ///
@@ -21,7 +23,11 @@ const int _yearsBack = 50;
 /// Opens over `/mountain/:id` as a modal sheet rather than as a route of its
 /// own, so the peak stays behind it and dismissing it needs no navigation.
 ///
-/// Photos belong here too and are not built yet. T17 owns them.
+/// Photos are attached here too. They are copied into the app's own documents
+/// directory as soon as they are picked, by [ClimbPhotoDraft], and this sheet
+/// only ever handles the bare filenames that come back. See
+/// `data/photos/photo_filename.dart` for why that distinction is the one that
+/// matters.
 class MarkClimbedSheet extends ConsumerStatefulWidget {
   const MarkClimbedSheet({
     required this.mountainId,
@@ -99,6 +105,10 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     final NavigatorState navigator = Navigator.of(context);
 
+    final ClimbPhotoDraft photos = ref.read(climbPhotoDraftProvider.notifier);
+    final List<String> photoFilenames =
+        ref.read(climbPhotoDraftProvider).valueOrNull ?? const <String>[];
+
     final int? id = await ref
         .read(markClimbedControllerProvider.notifier)
         .save(
@@ -106,6 +116,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
           date: _date,
           companions: _companions.text,
           notes: _notes.text,
+          photoFilenames: photoFilenames,
         );
 
     if (!mounted) return;
@@ -114,6 +125,12 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
       setState(() => _failure = 'That climb did not save. Give it another go.');
       return;
     }
+
+    // Before the pop, and only on a save that landed. Popping disposes the
+    // draft, and a draft that was never kept deletes its copies on the way out,
+    // which is right for a sheet that was abandoned and would be data loss one
+    // line later than this.
+    photos.keep();
 
     navigator.pop();
     messenger.showSnackBar(const SnackBar(content: Text('Climb saved')));
@@ -180,6 +197,11 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
                   hintText: 'How the climb went',
                 ),
               ),
+              const SizedBox(height: CairnSpace.x20),
+
+              const SectionLabel('Photos'),
+              const SizedBox(height: CairnSpace.x8),
+              ClimbPhotoField(enabled: !saving),
 
               if (_failure != null) ...[
                 const SizedBox(height: CairnSpace.x16),
@@ -206,9 +228,11 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
 
 /// The date, in a field you tap rather than type into.
 ///
-/// Shaped like the text fields beside it so the three read as one form, and it
-/// spells the day out in full: a field this wide has room for the longest month
-/// in the year, so nothing here is ever shortened.
+/// Spells the day out in full: the field is as wide as the sheet and has room
+/// for the longest month in the year, so nothing here is ever shortened.
+///
+/// The shape itself moved to [TapField] in T17, when the photo row became its
+/// second consumer.
 class _DateField extends StatelessWidget {
   const _DateField({required this.day, required this.onTap});
 
@@ -219,44 +243,11 @@ class _DateField extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.cairnColors;
-    final text = context.cairnText;
-
-    return Material(
-      color: colors.surfaceAlt,
-      borderRadius: CairnRadius.fieldAll,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: CairnSize.control),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: CairnSpace.x16,
-              vertical: CairnSpace.x12,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_rounded,
-                  size: CairnSize.icon,
-                  color: colors.accent,
-                ),
-                const SizedBox(width: CairnSpace.x12),
-                Expanded(child: Text(climbDayLabel(day), style: text.body)),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: CairnSize.icon,
-                  color: colors.inkMuted,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => TapField(
+    icon: Icons.event_rounded,
+    label: climbDayLabel(day),
+    onTap: onTap,
+  );
 }
 
 /// The local calendar day, with the clock time dropped.
