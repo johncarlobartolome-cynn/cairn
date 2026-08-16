@@ -29,7 +29,11 @@ class ClimbPhotoStrip extends StatelessWidget {
         final double cardWidth = constraints.maxWidth;
 
         return SizedBox(
-          height: cardWidth / CairnSize.peakPhotoAspect,
+          // Its own token, not the peak card's. They were the same 4:3 until
+          // the peaks grid needed a shallower card to fit six on a screen, and
+          // this strip has no such fight: a photo of a climb is as tall as it
+          // deserves to be.
+          height: cardWidth / CairnSize.climbPhotoAspect,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: filenames.length,

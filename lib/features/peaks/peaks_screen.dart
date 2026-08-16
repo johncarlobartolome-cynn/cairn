@@ -150,7 +150,10 @@ class _Header extends StatelessWidget {
         // duplication the never-truncate rule tells you to fix in the data
         // rather than in the layout.
         ProgressHeading(climbed: board.climbedTotal, total: board.libraryTotal),
-        const SizedBox(height: CairnSpace.x20),
+        // 16 rather than 20. The bar is 6dp of quiet and needs less air under
+        // it than a block of content would, and the grid below is owed every
+        // step that can be spared.
+        const SizedBox(height: CairnSpace.x16),
         FilterPillRow(
           labels: <String>[
             for (final filter in PeakFilter.values) filter.label,
@@ -161,8 +164,11 @@ class _Header extends StatelessWidget {
           // margin, so it brings none of its own.
           padding: EdgeInsets.zero,
         ),
-        // Half the gap to the first card. The list separator adds the other half.
-        const SizedBox(height: CairnSpace.x12),
+        // The list separator adds 12 on top of this, so the pills sit 16 above
+        // the first card. Cards are 12 apart from each other and the header is
+        // a different kind of thing, so it wants more than a card gap and less
+        // than the 24 it had.
+        const SizedBox(height: CairnSpace.x4),
       ],
     );
   }

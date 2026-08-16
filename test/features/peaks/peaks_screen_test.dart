@@ -384,23 +384,24 @@ void main() {
     });
   });
 
-  testWidgets('the third row still shows under the pills on a real phone', (
+  testWidgets('all six peaks fit above the nav on a real phone', (
     tester,
   ) async {
-    // The grid has been broken twice by things added above it. T13 added a
-    // third line to the card and cost the list its third row; T20 added the
-    // progress line and the pills and cost it the room those take.
+    // The one the grid keeps losing. T13 put a third fact on the card and cost
+    // the list its third row. T20 put a progress line and a row of pills above
+    // the grid and cost it four peaks, until 5:3 and a 12dp footer bought them
+    // back.
     //
-    // Six cards fully above the nav is gone at this card height, so the rule
-    // this holds is the one that is left: the third row has to start far enough
-    // above the nav to say the list carries on. Below that it reads as the end
-    // of the library, and the whole point of the screen is that the reader sees
-    // the set.
+    // The phone is the emulator this project ships against: 1080 by 2400 at
+    // density 420, so 411 by 914 dp, insets top and bottom.
     //
-    // Measured on the emulator this project ships against: 1080x2400 at density
-    // 420, so 411 by 914 dp, with a 24dp inset top and bottom. The test font is
-    // wider than Manrope and pushes the cards taller than a device does, so the
-    // margin here is the pessimistic one.
+    // The card height is computed rather than read off the tree, and that is
+    // the load-bearing part of this test. The test font is a square-glyph
+    // stand-in that is far wider than Manrope, so every peak name wraps here
+    // and no card is the height a device draws. The photo is exact, the type
+    // scale is exact, and a footer is two known lines inside known padding, so
+    // the height is assembled from those instead. On the emulator this comes
+    // out at 182dp against a measured 182.
     await pumpApp(
       tester,
       db,
@@ -413,14 +414,39 @@ void main() {
     expect(cards, findsNWidgets(6), reason: 'all six are in the list');
 
     final navTop = tester.getRect(find.byType(PillNav)).top;
-    final thirdRow = tester.getRect(cards.at(4)).top;
+    final firstRowTop = tester.getRect(cards.at(0)).top;
+    final photo = tester.getRect(
+      find.descendant(of: cards.at(0), matching: find.byType(AspectRatio)).first,
+    );
 
     expect(
-      thirdRow,
-      lessThan(navTop - CairnSpace.x24),
+      photo.width / photo.height,
+      closeTo(CairnSize.peakPhotoAspect, 0.01),
+      reason: 'the photo is the shape the token says it is',
+    );
+    expect(
+      photo.height / photo.width,
+      greaterThan(0.5),
+      reason: 'a photo shallower than 2:1 has stopped being a photo',
+    );
+
+    double lineOf(TextStyle style) => style.fontSize! * style.height!;
+    final footer =
+        CairnSpace.x12 * 2 +
+        lineOf(CairnType.screenTitle) +
+        CairnSpace.x4 +
+        lineOf(CairnType.meta);
+    final card = photo.height + footer;
+    final lastRowBottom = firstRowTop + 3 * card + 2 * CairnSpace.cardGap;
+
+    expect(
+      lastRowBottom,
+      lessThan(navTop),
       reason:
-          'the third row has to break the fold by more than a hairline. '
-          'Anything new above the grid comes out of this margin.',
+          'the sixth peak has to be readable without scrolling, which is the '
+          'whole reason this list is a two-column grid. It is over the nav by '
+          '${(lastRowBottom - navTop).toStringAsFixed(1)}dp. Anything added '
+          'above the grid, or any height added to the card, comes out of this.',
     );
 
     await disposeApp(tester);

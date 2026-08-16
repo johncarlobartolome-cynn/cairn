@@ -74,7 +74,12 @@ class PeakCard extends StatelessWidget {
                 child: _PeakPhoto(image: image, climbed: climbed),
               ),
               Padding(
-                padding: const EdgeInsets.all(CairnSpace.x16),
+                // 12, not 16. That is 8dp off every card and 24dp off a
+                // three-row grid, which is a quarter of what the sixth peak
+                // needed. The footer holds two short lines at 22 and 13 and 12
+                // still clears both; the photo above is what carries the card's
+                // generosity.
+                padding: const EdgeInsets.all(CairnSpace.x12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

@@ -210,10 +210,35 @@ abstract final class CairnSize {
   /// is what lets the nav publish the clearance a scroll view owes it.
   static const double navItem = 44;
 
-  /// Photo aspect ratio inside a peak card. Not specified; 4:3 gives the photo
-  /// enough height to carry the mood without pushing the list to one card a
-  /// screen.
-  static const double peakPhotoAspect = 4 / 3;
+  /// Photo aspect ratio inside a peak card.
+  ///
+  /// **5:3, and the number is grid arithmetic rather than taste.** T9 picked
+  /// 4:3 and nothing ever defended it. Measured off the emulator at 411 by 914
+  /// dp: a card is 179.7 wide, there is 750 dp between the top of the list and
+  /// the floating nav, and three rows plus their gaps have to fit in there
+  /// alongside a header. At 4:3 the photo was 135 and the card 217, so three
+  /// rows came to 675 and left 75 dp for a header. The greeting alone is 100.
+  /// The sixth peak was therefore behind the nav before T20 added a single
+  /// pixel, and no header at all would have fixed it.
+  ///
+  /// At 5:3 the photo is 108 and the card 182, so three rows come to 570 and
+  /// the header has 180 to spend. It spends 164, and the last row lands clear
+  /// of the nav. Verified by counting readable names on the device, not by
+  /// trusting this sum.
+  ///
+  /// 16:9 was the other candidate and it is the wrong shape: 101 dp of photo on
+  /// a 180 dp card reads as a banner over a caption. 5:3 is still a landscape
+  /// photograph.
+  static const double peakPhotoAspect = 5 / 3;
+
+  /// Photo aspect ratio inside a climb's photo strip.
+  ///
+  /// Left at 4:3 while [peakPhotoAspect] moved. It looks like the same number
+  /// and it is not the same decision: a peak card's photo is shaped by how many
+  /// cards have to share one screen, and a photo somebody took on a climb is
+  /// shaped by wanting to see it. Nothing on climb detail is competing for the
+  /// room, so nothing there had to give any up.
+  static const double climbPhotoAspect = 4 / 3;
 }
 
 /// The soft, wide, green-tinted card shadow. No hard drop shadows anywhere.
