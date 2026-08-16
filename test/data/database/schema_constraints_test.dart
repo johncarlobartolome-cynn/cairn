@@ -85,6 +85,53 @@ void main() {
     expect(await achievements.watchCount().first, 1);
   });
 
+  test('the database itself refuses a duplicate peak badge', () async {
+    // The two tests above go through `unlock`, which asks SQLite to ignore a
+    // repeat. That shows the app is polite, not that the file is safe. This one
+    // and the next write raw SQL with no ignore clause, so the only thing that
+    // can stop them is the index in the file. Drop the index and they pass.
+    final id = await pulagId();
+    const insert =
+        'INSERT INTO achievements (type, unlocked_at, mountain_id) '
+        "VALUES ('perMountain', 1786900000, ?)";
+
+    await db.customStatement(insert, <Object?>[id]);
+
+    await expectLater(
+      db.customStatement(insert, <Object?>[id]),
+      throwsA(
+        predicate(
+          (Object? e) => '$e'.contains('UNIQUE constraint failed'),
+          'a UNIQUE constraint failure',
+        ),
+      ),
+    );
+    expect(await achievements.watchCount().first, 1);
+  });
+
+  test('the database itself refuses a duplicate milestone badge', () async {
+    // The one SQLite would otherwise wave through. Every NULL counts as
+    // distinct inside a unique index, so `(type, mountain_id)` as an ordinary
+    // pair would let the same milestone unlock as often as it liked. The
+    // partial index on `type` alone, where `mountain_id IS NULL`, closes that.
+    const insert =
+        'INSERT INTO achievements (type, unlocked_at, mountain_id) '
+        "VALUES ('firstClimb', 1786900000, NULL)";
+
+    await db.customStatement(insert);
+
+    await expectLater(
+      db.customStatement(insert),
+      throwsA(
+        predicate(
+          (Object? e) => '$e'.contains('UNIQUE constraint failed'),
+          'a UNIQUE constraint failure',
+        ),
+      ),
+    );
+    expect(await achievements.watchCount().first, 1);
+  });
+
   test('the same peak can hold two badges of different types', () async {
     final id = await pulagId();
 

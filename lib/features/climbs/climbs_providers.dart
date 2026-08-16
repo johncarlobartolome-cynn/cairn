@@ -51,6 +51,13 @@ class MarkClimbedController extends AsyncNotifier<void> {
   /// column's converter refuses a path outright, so this call fails and the
   /// sheet stays open rather than the app storing a photo it will not be able
   /// to find later.
+  ///
+  /// Badges unlock as part of this save rather than after it. The peak's own
+  /// badge and any milestone the climb just crossed are written in the same
+  /// transaction as the climb, so a save that earns two badges is still one
+  /// thing the user did and a failure part way leaves neither. Nothing about
+  /// that reaches a widget: the sheet calls this, this calls the DAO, and
+  /// `test/architecture/layer_rule_test.dart` keeps it that way.
   Future<int?> save({
     required int mountainId,
     required DateTime date,

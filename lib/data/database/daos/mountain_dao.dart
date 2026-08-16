@@ -27,6 +27,18 @@ class MountainDao extends DatabaseAccessor<AppDatabase> {
     return query.map((row) => row.read(count)!).watchSingle();
   }
 
+  /// How many peaks the library holds, read once.
+  ///
+  /// The "all peaks" badge asks this rather than assuming six. A user is
+  /// allowed to add a peak of their own, and a seventh peak has to move the
+  /// finish line rather than leave a finished badge sitting over a list with a
+  /// peak still unclimbed on it.
+  Future<int> countAll() async {
+    final count = _mountains.id.count();
+    final query = selectOnly(_mountains)..addColumns([count]);
+    return (await query.getSingle()).read(count)!;
+  }
+
   /// Returns the new row id.
   Future<int> add(MountainsCompanion mountain) =>
       into(_mountains).insert(mountain);

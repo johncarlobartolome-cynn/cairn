@@ -1,12 +1,22 @@
 import 'package:drift/drift.dart';
 
 import '../database.dart';
+import 'achievement_dao.dart';
+import 'mountain_dao.dart';
 
 /// Every query against `climbs`. Nothing above this layer writes SQL.
 class ClimbDao extends DatabaseAccessor<AppDatabase> {
   ClimbDao(super.attachedDatabase);
 
   $ClimbsTable get _climbs => attachedDatabase.climbs;
+
+  /// Badges are a consequence of a climb, so logging one reaches for them. Both
+  /// of these are thin wrappers over the same database and hold no state, so
+  /// building one per call costs nothing and keeps every query about a table in
+  /// the DAO that owns it.
+  AchievementDao get _achievements => AchievementDao(attachedDatabase);
+
+  MountainDao get _mountains => MountainDao(attachedDatabase);
 
   /// Newest first.
   Stream<List<Climb>> watchAll() =>
@@ -26,6 +36,17 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
 
   Stream<Climb?> watchById(int id) =>
       (select(_climbs)..where((c) => c.id.equals(id))).watchSingleOrNull();
+
+  /// How many different peaks have at least one climb.
+  ///
+  /// Distinct peaks, never climbs: three trips up Batulao count once. The
+  /// milestones are built on this number, which is why it is counted in SQL
+  /// rather than assembled from a list of rows.
+  Future<int> countClimbedMountains() async {
+    final climbed = _climbs.mountainId.count(distinct: true);
+    final query = selectOnly(_climbs)..addColumns([climbed]);
+    return (await query.getSingle()).read(climbed)!;
+  }
 
   /// The ids of every peak with at least one climb, for the climbed/unclimbed
   /// treatment. Grouped in SQL rather than pulling every climb row up to Dart.
@@ -57,21 +78,48 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
   /// documents directory. Never paths: the column's converter refuses one, so
   /// a caller that skipped the copy fails here and loudly, rather than storing
   /// a photo that nobody can find after the next install.
+  ///
+  /// **The badges this climb earns are unlocked here too, in the same
+  /// transaction.** Two reasons it lives inside the write rather than beside
+  /// it. Saving a climb that unlocks two badges is one thing the user did, so a
+  /// crash between the row and the badge must leave neither rather than a climb
+  /// with a badge missing. And a badge that only unlocks when the caller
+  /// remembers to ask is a badge that stops unlocking the first time somebody
+  /// adds a second save path.
+  ///
+  /// [unlockedAt] is the moment the badges fired, and defaults to now. Tests
+  /// pass their own so the stamp on a row is something they can assert.
   Future<int> logClimb({
     required int mountainId,
     required DateTime date,
     String? companions,
     String? notes,
     List<String> photoFilenames = const <String>[],
-  }) => add(
-    ClimbsCompanion.insert(
-      mountainId: mountainId,
-      date: date,
-      companions: Value(companions),
-      notes: Value(notes),
-      photoFilenames: Value(photoFilenames),
-    ),
-  );
+    DateTime? unlockedAt,
+  }) {
+    return transaction(() async {
+      final int id = await add(
+        ClimbsCompanion.insert(
+          mountainId: mountainId,
+          date: date,
+          companions: Value(companions),
+          notes: Value(notes),
+          photoFilenames: Value(photoFilenames),
+        ),
+      );
+
+      // Counted after the insert and inside the same transaction, so the climb
+      // being saved is already part of the answer.
+      await _achievements.unlockEarned(
+        mountainId: mountainId,
+        peaksClimbed: await countClimbedMountains(),
+        peaksInLibrary: await _mountains.countAll(),
+        at: unlockedAt ?? DateTime.now(),
+      );
+
+      return id;
+    });
+  }
 
   Future<int> removeById(int id) =>
       (delete(_climbs)..where((c) => c.id.equals(id))).go();

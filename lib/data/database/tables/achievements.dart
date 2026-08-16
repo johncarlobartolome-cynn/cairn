@@ -8,8 +8,14 @@ import 'mountains.dart';
 /// null `mountainId`. A plain per-mountain/milestone flag could not tell the
 /// three milestones apart, which is what the unique index below has to do.
 ///
-/// Stored as text, so E4 can add a tier without a migration.
-enum AchievementType { perMountain, firstClimb, fivePeaks, allPeaks }
+/// The milestones are spaced one at the start, one at the halfway point and one
+/// at the end. [threePeaks] replaced a five-peaks tier during T18: the curated
+/// library is six peaks, so five and six unlocked in the same hike and nothing
+/// marked the four climbs before them. The rename cost nothing because no
+/// achievement row existed anywhere, on any device, at the time.
+///
+/// Stored as text, so a later tier needs no migration.
+enum AchievementType { perMountain, firstClimb, threePeaks, allPeaks }
 
 /// An unlocked badge.
 ///
