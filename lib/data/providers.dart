@@ -15,7 +15,7 @@ import 'share/share_sheet.dart';
 /// The photo types travel with their providers, for the same reason the row
 /// types do: a widget cannot render a stored photo without naming them.
 export 'photos/photo_picker.dart' show PhotoPicker;
-export 'photos/photo_store.dart' show PhotoStore;
+export 'photos/photo_store.dart' show PhotoCapReport, PhotoStore;
 
 /// The share seam travels the same way, so a test can stand in for the
 /// platform without naming a file under `data/share/`.
@@ -132,6 +132,18 @@ final photoStoreProvider = Provider<PhotoStore>(
   (ref) => PhotoStore(
     directory: () => ref.read(documentsDirectoryProvider.future),
   ),
+);
+
+/// Brings photos taken before the cap existed inside it, once per install.
+///
+/// A [FutureProvider] because it is work with an end rather than state anyone
+/// watches. `main.dart` starts it and nothing awaits it: the pass rewrites
+/// files under the names they already have, the screens read the same files by
+/// the same names, and a photo is the same photo at either size. Reading this
+/// provider is what runs it, and reading it again returns the future already in
+/// flight, so it cannot run twice over one directory.
+final photoCapPassProvider = FutureProvider<PhotoCapReport>(
+  (ref) => ref.watch(photoStoreProvider).capStoredPhotos(),
 );
 
 /// The system photo picker, behind a seam so a test can stand in for it. No
