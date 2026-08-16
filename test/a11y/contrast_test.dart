@@ -176,6 +176,18 @@ List<ContrastPair> renderedPairs(CairnPalette p) {
       rule: ContrastRule.bodyText,
     ),
     ContrastPair(
+      // New in T23, when the region and the walk up came out of stat tiles and
+      // became a line of text on the page. Same two tokens as the section label
+      // above, and listed anyway: this file holds the places a pair occurs
+      // rather than the pairs a palette contains, so a screen that starts
+      // putting text somewhere new says so here.
+      where: 'Subtitle under a peak name on peak detail',
+      pair: 'inkMuted on ground',
+      foreground: p.inkMuted,
+      background: p.ground,
+      rule: ContrastRule.bodyText,
+    ),
+    ContrastPair(
       where: 'Text button label',
       pair: 'accent on ground',
       foreground: p.accent,

@@ -32,15 +32,24 @@ extension PeakFacts on Mountain {
     return point == null || point.isEmpty ? null : point;
   }
 
-  /// e.g. `8 h`, or `3.5 h` for a half hour. The column is fractional on purpose.
-  String? get hoursLabel {
+  /// e.g. `4 hours to the summit`, or `3.5 hours to the summit` for a half
+  /// hour. The column is fractional on purpose.
+  ///
+  /// It was `4 h` under an `HOURS` caption while this was a stat tile. Out of
+  /// the tile the abbreviation has nothing to lean on, and a caption is not a
+  /// sentence: "hours" alone never said hours of what, and the figure is the
+  /// walk up rather than the round trip. So the fact says what it is, in the
+  /// words somebody would use standing at the jump-off. Nobody says "four hours
+  /// to summit" out loud, which is why the article is here.
+  String? get summitTimeLabel {
     final hours = estimatedHours;
     if (hours == null) return null;
     final rounded = (hours * 10).round() / 10;
     final digits = rounded == rounded.roundToDouble()
         ? rounded.toStringAsFixed(0)
         : rounded.toStringAsFixed(1);
-    return '$digits h';
+    final unit = rounded == 1 ? 'hour' : 'hours';
+    return '$digits $unit to the summit';
   }
 }
 

@@ -171,16 +171,18 @@ void main() {
       await pumpApp(tester, db, location: CairnRoute.mountain(firstPeak.id));
 
       expect(find.text(firstPeak.name), findsOneWidget);
-      // Elevation, difficulty, hours, region.
-      expect(find.byType(StatTile), findsNWidgets(4));
+      // Elevation and difficulty. T23 moved hours and region out of tiles and
+      // into the subtitle under the name, so two is the whole grid now.
+      expect(find.byType(StatTile), findsNWidgets(2));
 
       // Batulao is alphabetically first, so it is the peak a deep link to
       // `firstPeak` opens. Its four figures below are the ones the peak-data
-      // note verified.
+      // note verified. All four are still on the screen after T23; two of them
+      // stopped being boxes.
       expect(firstPeak.name, 'Mt. Batulao');
       expect(find.text('811 m'), findsOneWidget);
       expect(find.text('Moderate'), findsOneWidget);
-      expect(find.text('3 h'), findsOneWidget);
+      expect(find.text('3 hours to the summit'), findsOneWidget);
       expect(find.text('Batangas'), findsOneWidget);
 
       // The grid used to draw four dashes, because every column behind it was
@@ -305,7 +307,7 @@ void main() {
       await tester.tap(find.byType(PeakCard).first);
       await tester.pumpAndSettle();
 
-      expect(find.byType(StatTile), findsNWidgets(4));
+      expect(find.byType(StatTile), findsNWidgets(2));
       // The shell is behind the pushed page, so its nav is off screen.
       expect(find.byType(PillNav), findsNothing);
 
@@ -427,7 +429,11 @@ void main() {
     ) async {
       await pumpApp(tester, db, location: CairnRoute.badges);
       await pushOverShell(tester, CairnRoute.mountain(firstPeak.id));
-      expect(find.byType(StatTile), findsNWidgets(4));
+      // The peak's own name as well as the tile count, because badges carries
+      // a two-tile row of its own and the count alone stopped telling the two
+      // screens apart once T23 took peak detail down to two.
+      expect(find.text(firstPeak.name), findsOneWidget);
+      expect(find.byType(StatTile), findsNWidgets(2));
 
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();

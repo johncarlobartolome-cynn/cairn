@@ -10,6 +10,7 @@ import '../../shared/widgets/cairn_back_button.dart';
 import '../../shared/widgets/cairn_button.dart';
 import '../../shared/widgets/cairn_mark.dart';
 import '../../shared/widgets/empty_state_page.dart';
+import '../../shared/widgets/meta_row.dart';
 import '../../shared/widgets/section_label.dart';
 import '../../shared/widgets/stat_tile.dart';
 import '../climbs/mark_climbed_sheet.dart';
@@ -19,9 +20,26 @@ import 'peaks_providers.dart';
 import 'share_card.dart';
 import 'widgets/share_card_sheet.dart';
 
-/// One peak: its name, the four facts the design puts in a 2x2 grid, where the
-/// climb starts, every climb logged against it, and the action that logs
-/// another.
+/// One peak: its name and where it is, the two figures that decide whether you
+/// go, where the climb starts, the action that logs a climb, and every climb
+/// already logged against it.
+///
+/// **T23 rebuilt the top of this screen.** It opened with a 2x2 grid of stat
+/// tiles holding elevation, difficulty, hours and region, and all three of the
+/// design's complaints about that shape were fair. A tile is a box sized for a
+/// measurement, and a province is an attribute rather than a measurement, so
+/// region was in a container that could only fail it: not tappable, so a value
+/// too long to fit had nowhere to be revealed, which made clipping a dead end
+/// instead of a compromise. And four boxes took the top third of the screen for
+/// four short facts, in the position the screen's own action should hold, back
+/// when there was no action to put there. E3 and E4 gave this screen a Mark
+/// climbed button and a climb history, so the room stopped being theoretical.
+///
+/// The shape now: only elevation and difficulty keep tiles, because both are
+/// short enough that nothing can ever clip and both are what somebody weighs
+/// before committing to a peak. Region and the walk up read as a subtitle under
+/// the name, the way a place and a duration are actually said. The action moved
+/// above the climb history, so it stays reachable on a peak with a long log.
 ///
 /// Pushed over the nav shell, so the floating nav is not on screen and no scroll
 /// view here owes it clearance.
@@ -128,32 +146,40 @@ class _Detail extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(peak.name, style: text.displayLine2),
+              // Carries its own gap, because on a peak with neither a region
+              // nor an estimate it draws nothing and the gap has to go with it.
+              _Subtitle(peak: peak),
               const SizedBox(height: CairnSpace.x24),
-              const SectionLabel('Details'),
-              const SizedBox(height: CairnSpace.x12),
-              _StatGrid(peak: peak),
+              _KeyStats(peak: peak),
               // Nothing at all when the peak has no jump-off recorded, so the
               // gap above it goes with the section.
               if (jumpOff != null) ...[
                 const SizedBox(height: CairnSpace.x24),
                 _JumpOff(point: jumpOff),
               ],
+              // Above the climb history rather than below it, which is the
+              // change T23 made to where this button lives.
+              //
+              // It sat at the foot of the content because there was nothing
+              // under it when T15 put it there. A peak climbed four times now
+              // carries four rows, and each one pushed the screen's primary
+              // action further under the fold: the log grows without limit and
+              // the action is a fixed thing that has to stay in reach. Reading
+              // order agrees with the thumb here. You decide from the figures
+              // and the jump-off, you act, and the history is the record you
+              // scroll to afterwards.
+              //
+              // Still in the scroll flow rather than pinned to the window. A
+              // pinned bar would sit over the photo hero E2 has yet to build,
+              // and that is a decision for the ticket that builds it.
+              const SizedBox(height: CairnSpace.x32),
+              _MarkClimbedAction(peak: peak),
               // Same rule as the jump-off: a peak with no climbs shows nothing
-              // here, label included. The section is also where the screen's
-              // empty lower half finally goes, which is the half the design's
-              // open question calls the layout's real problem.
+              // here, label included.
               if (climbs.isNotEmpty) ...[
-                const SizedBox(height: CairnSpace.x24),
+                const SizedBox(height: CairnSpace.x32),
                 ClimbHistory(climbs: climbs),
               ],
-              const SizedBox(height: CairnSpace.x32),
-              // In the scroll flow at the foot of the content rather than
-              // pinned to the bottom of the window. The screen is short today,
-              // so the action is on screen without scrolling, and the design's
-              // own open question says peak detail's layout is due a rethink
-              // that will decide where the action really lives. Pinning a bar
-              // now would build the half of that answer nobody has agreed on.
-              _MarkClimbedAction(peak: peak),
             ],
           ),
         ),
@@ -233,14 +259,14 @@ class _ShareAction extends StatelessWidget {
   }
 }
 
-/// Where the climb starts, under its own label below the stat grid.
+/// Where the climb starts, under its own label below the two tiles.
 ///
 /// Body text, not a stat tile. These strings are an address a person reads and
 /// travels to, and one of them carries a registration note as well: "Brgy.
-/// Poblacion, Bakun (register at Bakun National High School or the Municipal
-/// Tourism Council)". A tile clips its value to a single line, which is what
-/// went wrong with region, so this wraps to as many lines as it needs and is
-/// never truncated.
+/// Poblacion, Bakun. Register at Bakun National High School or the Municipal
+/// Tourism Council." Prose has no length a box can promise to fit, so this
+/// wraps to as many lines as it needs and is never truncated. It was the first
+/// fact to leave the grid, and T23 moved the other two out behind it.
 ///
 /// Only built when the peak has one. The caller owns that check, because the
 /// spacing above the section goes with it.
@@ -264,59 +290,90 @@ class _JumpOff extends StatelessWidget {
   }
 }
 
-/// The 2x2 grid, in the order the design lists it.
+/// Where the peak is and how long the walk up takes, said as one line under
+/// the name.
 ///
-/// Every value is null in the database today, and a StatTile handed an empty
-/// value draws a dash. A dash reads as "not recorded", which is exactly what it
-/// is. Filling the gap with a plausible elevation would read as fact.
+/// **Region is an attribute, so it reads as one.** It spent T13 to T22 in a
+/// stat tile, where it was the only value on the screen that ever needed
+/// shortening: `Batangas (Nasugbu)` drew as `Batangas (` and an ellipsis, the
+/// data was cut back to the province to make it fit, and a peak somebody adds
+/// themselves could have broken it again. A subtitle has no width to fit
+/// inside. It wraps, and a province is never the thing a reader has to hunt
+/// for anyway; it is how you place the mountain while you read its name.
 ///
-/// Two rows of two rather than a GridView, so the tiles take their height from
-/// their own content instead of an aspect ratio guessed against one screen width.
-class _StatGrid extends StatelessWidget {
-  const _StatGrid({required this.peak});
+/// The walk up joins it rather than keeping a box, because a duration next to a
+/// place is a sentence people already say: Benguet, four hours to the summit.
+///
+/// Every field here is nullable and the peaks a user adds may carry neither.
+/// [MetaRow] drops a null and glues each separator to the fact that follows it,
+/// so one fact draws one fact with no dangling dot, and no facts draws nothing
+/// at all, gap included. Absent means absent, which is the same rule the
+/// jump-off and the climb history follow.
+class _Subtitle extends StatelessWidget {
+  const _Subtitle({required this.peak});
 
   final Mountain peak;
 
   @override
   Widget build(BuildContext context) {
-    final tiles = <({String? value, String caption, IconData icon})>[
-      (
-        value: peak.elevationLabel,
-        caption: 'Elevation',
-        icon: Icons.height_rounded,
-      ),
-      (
-        value: peak.difficultyLabel,
-        caption: 'Difficulty',
-        icon: Icons.trending_up_rounded,
-      ),
-      (value: peak.hoursLabel, caption: 'Hours', icon: Icons.schedule_rounded),
-      (value: peak.region, caption: 'Region', icon: Icons.place_outlined),
-    ];
+    final facts = <String?>[peak.region, peak.summitTimeLabel];
+    final hasAny = facts.any((f) => f != null && f.trim().isNotEmpty);
+    if (!hasAny) return const SizedBox.shrink();
 
-    return Column(
-      children: [
-        for (var row = 0; row < tiles.length; row += 2) ...[
-          if (row > 0) const SizedBox(height: CairnSpace.cardGap),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var column = 0; column < 2; column++) ...[
-                  if (column > 0) const SizedBox(width: CairnSpace.cardGap),
-                  Expanded(
-                    child: StatTile(
-                      value: tiles[row + column].value ?? '',
-                      caption: tiles[row + column].caption,
-                      icon: tiles[row + column].icon,
-                    ),
-                  ),
-                ],
-              ],
+    return Padding(
+      padding: const EdgeInsets.only(top: CairnSpace.x8),
+      child: MetaRow(facts),
+    );
+  }
+}
+
+/// The two figures somebody weighs before deciding to climb, side by side.
+///
+/// **Only short values sit in boxes now.** An elevation is at most `2,922 m`
+/// and a difficulty is one word from a three-value enum, so neither can outgrow
+/// a half-width tile at any screen size the app runs on. That is the whole
+/// reason these two kept their tiles while region and hours lost theirs: a
+/// container that cannot reveal what it hides must never be handed something
+/// that might not fit.
+///
+/// A missing value still draws a dash rather than dropping the tile, and that
+/// is deliberately the opposite of what the subtitle does. A subtitle has no
+/// promised shape, so a fact that is not there is simply not said. A tile is a
+/// labelled slot, and on the peaks a user adds the honest answer is that the
+/// app does not know the elevation, not that the peak has none. Inventing a
+/// plausible figure would read as fact.
+///
+/// [IntrinsicHeight] keeps the pair level if one tile wraps to its second line,
+/// which is the safety net [StatTile] keeps for user-added peaks even though
+/// none of the six seeded values comes close to needing it.
+class _KeyStats extends StatelessWidget {
+  const _KeyStats({required this.peak});
+
+  final Mountain peak;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: StatTile(
+              value: peak.elevationLabel ?? '',
+              caption: 'Elevation',
+              icon: Icons.height_rounded,
+            ),
+          ),
+          const SizedBox(width: CairnSpace.cardGap),
+          Expanded(
+            child: StatTile(
+              value: peak.difficultyLabel ?? '',
+              caption: 'Difficulty',
+              icon: Icons.trending_up_rounded,
             ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
