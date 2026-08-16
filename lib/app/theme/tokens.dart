@@ -72,6 +72,19 @@ class CairnPalette {
   final Color error;
   final Color onError;
 
+  /// Four values moved in T22, and every one of them moved because a
+  /// measurement said so rather than because it looked better. Before T22 the
+  /// palette had been eyeballed in both themes and never computed, which T8's
+  /// review said outright at the time. `test/a11y/contrast_test.dart` now holds
+  /// every pair the app renders, so the next edit here fails a test instead of
+  /// quietly costing somebody a line of text they can no longer read.
+  ///
+  /// | Token | Was | Now | The pair that forced it |
+  /// |---|---|---|---|
+  /// | light `inkMuted` | `#6B7268` | `#646A61` | 4.12 on `accentSoft` |
+  /// | light `accent` | `#4A7C3F` | `#48783D` | 4.38 on `ground` |
+  /// | light `gold` | `#C9A24A` | `#A4843C` | 2.40 on `surface` |
+  /// | dark `inkMuted` | `#9AA894` | `#B3BEAF` | 3.56 on `accentSoft` |
   static const light = CairnPalette(
     brightness: Brightness.light,
     ground: Color(0xFFF4F1EA),
@@ -79,12 +92,22 @@ class CairnPalette {
     surfaceAlt: Color(0xFFFAF8F3),
     brand: Color(0xFF1E3A2B),
     onBrand: Color(0xFFF4F1EA),
-    accent: Color(0xFF4A7C3F),
+    // Darkened two steps in T22. The spec gives `accent` to links as well as to
+    // buttons and icons, and link-coloured text on the cream ground measured
+    // 4.38 against a 4.5 bar. The icon and progress-bar uses only gained.
+    accent: Color(0xFF48783D),
     accentSoft: Color(0xFFE4EDDC),
     ink: Color(0xFF1A1F1B),
-    inkMuted: Color(0xFF6B7268),
+    // The muted grey-green, darkened in T22. It was failing as body text on
+    // three of the four backgrounds it sits on, the emphasised stat tile's
+    // `accentSoft` worst at 4.12.
+    inkMuted: Color(0xFF646A61),
     hairline: Color(0xFFE2DED4),
-    gold: Color(0xFFC9A24A),
+    // An antique brass rather than the brighter gold T9 transcribed. A milestone
+    // badge is now told apart by the shape of its disc, so that silhouette has
+    // to be visible against a white card, and `#C9A24A` on white measured
+    // 2.40 against the 3:1 bar for a meaningful graphic. This reads 3.53.
+    gold: Color(0xFFA4843C),
     error: Color(0xFFB3261E),
     onError: Color(0xFFFFFFFF),
   );
@@ -99,7 +122,11 @@ class CairnPalette {
     accent: Color(0xFF7CB342),
     accentSoft: Color(0xFF2A5238),
     ink: Color(0xFFEDF2E8),
-    inkMuted: Color(0xFF9AA894),
+    // Lifted in T22. Dark's muted text was written against the deep ground and
+    // never re-checked against the two surfaces that lift off it, where it read
+    // 4.12 and 3.56. Both are the stat caption, which is the smallest type in
+    // the app and the least able to afford it.
+    inkMuted: Color(0xFFB3BEAF),
     hairline: Color(0xFF2A4534),
     gold: Color(0xFFD9B65E),
     error: Color(0xFFF2B8B5),
@@ -184,6 +211,20 @@ abstract final class CairnSize {
 
   /// Glyph drawn inside [badgeMark].
   static const double badgeMarkGlyph = 16;
+
+  /// Ring around a badge disc that sits over a photograph.
+  ///
+  /// A `brand` disc has no promised contrast against a picture nobody has taken
+  /// yet, and T22 measured it against the placeholder the app draws today: 2.38
+  /// to 1 in light and 2.20 in dark, so Cairn's single most important mark was
+  /// close to invisible on the card it matters on. A ring in `onBrand` fixes it
+  /// for every photograph at once rather than for one placeholder, because the
+  /// mark's edge is then two colours 11 to 1 apart and whatever lies behind it
+  /// only has to fail against one of them.
+  ///
+  /// 2dp rather than the 1dp hairline: at 28dp a hairline is a hint, and this
+  /// ring has a job.
+  static const double markRing = 2;
 
   /// Hairline borders and dividers.
   static const double hairline = 1;

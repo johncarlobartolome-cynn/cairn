@@ -33,11 +33,12 @@ class MetaRow extends StatelessWidget {
     if (parts.isEmpty) return const SizedBox.shrink();
 
     final effective = style ?? context.cairnText.meta;
-    final separator = effective.copyWith(
-      color: (effective.color ?? context.cairnColors.inkMuted).withValues(
-        alpha: 0.6,
-      ),
-    );
+    // The separator is drawn in the same colour as the facts either side of it,
+    // and it used to be faded to 60%. T22 measured that: on the cream ground it
+    // came out at 2.35:1 against a 4.5 bar, and no alpha under 1.0 clears the
+    // bar at all, so the fade had nowhere to go. It is a character on screen
+    // doing a job, which makes it text, and text is not allowed to be a smudge.
+    final separator = effective;
 
     final children = <Widget>[
       Text(parts.first, style: effective),

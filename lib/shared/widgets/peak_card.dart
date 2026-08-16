@@ -195,6 +195,9 @@ class _ClimbedMark extends StatelessWidget {
       glyph: CairnMark(),
       size: CairnSize.badgeMark,
       glyphSize: CairnSize.badgeMarkGlyph,
+      // The one disc in the app that lands on a picture rather than on a card,
+      // so it is the one that takes a ring.
+      overImagery: true,
     );
   }
 }

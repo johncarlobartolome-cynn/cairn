@@ -38,6 +38,7 @@ class BadgeDisc extends StatelessWidget {
     required this.glyph,
     this.size = CairnSize.iconBadge,
     this.glyphSize = CairnSize.iconBadgeGlyph,
+    this.overImagery = false,
     super.key,
   });
 
@@ -51,6 +52,11 @@ class BadgeDisc extends StatelessWidget {
 
   final double size;
   final double glyphSize;
+
+  /// This disc sits on a photograph rather than on a card, so it takes a ring
+  /// in the counter colour and stops depending on what is behind it. See
+  /// [CairnSize.markRing]. Only the climbed mark on a peak card sets this.
+  final bool overImagery;
 
   @override
   Widget build(BuildContext context) {
@@ -68,9 +74,14 @@ class BadgeDisc extends StatelessWidget {
       ),
     };
 
-    final side = unlocked
-        ? BorderSide.none
-        : BorderSide(color: colors.inkMuted, width: CairnSize.hairline);
+    final side = switch ((unlocked, overImagery)) {
+      (false, _) => BorderSide(
+        color: colors.inkMuted,
+        width: CairnSize.hairline,
+      ),
+      (true, true) => BorderSide(color: ink, width: CairnSize.markRing),
+      (true, false) => BorderSide.none,
+    };
 
     return SizedBox.square(
       dimension: size,
