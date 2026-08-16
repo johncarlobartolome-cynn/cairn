@@ -37,9 +37,11 @@ void main() {
     ) async {
       await pumpApp(tester, db);
 
-      // The heading counts the rows it was handed, so a six here is six rows out
-      // of the database rather than six cards laid out by hand.
-      expect(find.text('6 peaks'), findsOneWidget);
+      // The greeting, lower case, so it cannot match the nav's own 'Peaks'
+      // label. The count it used to carry moved to the progress line, and
+      // `peaks_screen_test.dart` is where that is held to the rows in the
+      // database rather than to a constant.
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PeakCard), findsWidgets);
       expect(find.text(firstPeak.name), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
@@ -47,14 +49,19 @@ void main() {
       await disposeApp(tester);
     });
 
-    testWidgets('/ puts the peaks two to a row, all six on one screen', (
-      tester,
-    ) async {
+    testWidgets('/ puts the peaks two to a row', (tester) async {
       await pumpApp(tester, db);
 
-      // Three rows of two fit inside a phone screen, which is the point of the
-      // grid: the climbed and unclimbed pattern reads without scrolling.
-      expect(find.byType(PeakCard), findsNWidgets(6));
+      // This used to assert all six were built at once and it no longer holds.
+      // T20 put a progress line and a row of filter pills above the grid, and
+      // that space comes out of the cards: at this view size the third row now
+      // starts below the fold, so the list has not built it yet.
+      //
+      // The claim the grid still owes the design is that the set reads as a
+      // set, which is the geometry below plus a third row visible enough to say
+      // the list carries on. `peaks_screen_test.dart` holds that one, with the
+      // measurements, because it is the rule two tickets have already broken.
+      expect(find.byType(PeakCard), findsAtLeastNWidgets(4));
 
       final cards = find.byType(PeakCard);
       final first = tester.getRect(cards.at(0));
@@ -262,7 +269,7 @@ void main() {
       await tester.tap(find.text('Back to peaks'));
       await tester.pumpAndSettle();
 
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -284,7 +291,7 @@ void main() {
 
       await tester.tap(find.text('Peaks'));
       await tester.pumpAndSettle();
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -330,7 +337,7 @@ void main() {
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -348,7 +355,7 @@ void main() {
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -397,7 +404,7 @@ void main() {
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
       expect(find.byType(PillNav), findsOneWidget);
 
       await disposeApp(tester);
@@ -410,7 +417,7 @@ void main() {
       await tester.tap(find.byType(CairnBackButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('6 peaks'), findsOneWidget);
+      expect(find.text('peaks'), findsOneWidget);
 
       await disposeApp(tester);
     });

@@ -6,6 +6,7 @@ import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
 import 'package:cairn/data/providers.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
+import 'package:cairn/shared/widgets/pill_nav.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -41,11 +42,37 @@ void main() {
   Future<int> idOf(String name) async =>
       (await mountains.getAll()).firstWhere((p) => p.name == name).id;
 
+  Future<void> logClimb(String name) async => climbs.logClimb(
+    mountainId: await idOf(name),
+    date: DateTime.utc(2026, 8, 15),
+  );
+
+  Future<void> climbEverything() async {
+    for (final peak in await mountains.getAll()) {
+      await climbs.logClimb(mountainId: peak.id, date: DateTime.utc(2026, 8, 15));
+    }
+  }
+
   Finder cardFor(String name) =>
       find.ancestor(of: find.text(name), matching: find.byType(PeakCard));
 
   bool climbedFlag(WidgetTester tester, String name) =>
       tester.widget<PeakCard>(cardFor(name)).climbed;
+
+  /// The progress count, as [SectionLabel] renders it. The widget uppercases so
+  /// no caller has to shout in a string literal, and a finder has to follow.
+  Finder progressCount(String sentence) => find.text(sentence.toUpperCase());
+
+  Future<void> tapFilter(WidgetTester tester, String label) async {
+    await tester.tap(find.text(label));
+    await tester.pump();
+    await tester.pump();
+  }
+
+  List<String> visibleNames(WidgetTester tester) => tester
+      .widgetList<PeakCard>(find.byType(PeakCard))
+      .map((card) => card.name)
+      .toList(growable: false);
 
   testWidgets('a climbed peak reads differently from an unclimbed one', (
     tester,
@@ -160,6 +187,241 @@ void main() {
     expect(find.byType(PeakCard), findsWidgets);
     expect(climbedFlag(tester, climbedName), isTrue);
     expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  group('the progress count', () {
+    testWidgets('counts the library rather than a constant', (tester) async {
+      // Six ship in the seed and the feature set lets a climber add their own,
+      // so a seventh peak has to move the total. A screen written against six
+      // passes every other test in this file and lies the day one is added.
+      await mountains.add(MountainsCompanion.insert(name: 'Mt. Zambales'));
+      await logClimb(climbedName);
+
+      await pumpApp(tester, db);
+
+      expect(progressCount('1 of 7 climbed'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('moves as peaks are climbed', (tester) async {
+      await pumpApp(tester, db);
+      expect(progressCount('0 of 6 climbed'), findsOneWidget);
+
+      await logClimb(climbedName);
+      // The screen watches the query, so the write is the only trigger needed.
+      await tester.pump();
+      await tester.pump();
+
+      expect(progressCount('1 of 6 climbed'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('fills the bar by the same fraction', (tester) async {
+      await logClimb(climbedName);
+      await logClimb(unclimbedName);
+
+      await pumpApp(tester, db);
+
+      expect(progressCount('2 of 6 climbed'), findsOneWidget);
+      final bar = tester.widget<FractionallySizedBox>(
+        find.byType(FractionallySizedBox),
+      );
+      expect(bar.widthFactor, closeTo(2 / 6, 0.001));
+
+      await disposeApp(tester);
+    });
+  });
+
+  group('the filters', () {
+    // Three peaks rather than six, so every card the filter admits is built and
+    // a missing name means the filter dropped it rather than the list not
+    // having scrolled that far.
+    Future<void> trimToThree() async {
+      for (final peak in (await mountains.getAll()).skip(3)) {
+        await mountains.removeById(peak.id);
+      }
+    }
+
+    testWidgets('All shows every peak in the library', (tester) async {
+      await trimToThree();
+      await logClimb(climbedName);
+      await pumpApp(tester, db);
+
+      expect(visibleNames(tester), hasLength(3));
+      expect(progressCount('1 of 3 climbed'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('To climb drops the peaks that have a climb', (tester) async {
+      await trimToThree();
+      await logClimb(climbedName);
+      await pumpApp(tester, db);
+
+      await tapFilter(tester, 'To climb');
+
+      expect(visibleNames(tester), isNot(contains(climbedName)));
+      expect(visibleNames(tester), hasLength(2));
+      // The count is about the library, not about the filter, so it holds.
+      expect(progressCount('1 of 3 climbed'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('Climbed keeps only the peaks that have one', (tester) async {
+      await trimToThree();
+      await logClimb(climbedName);
+      await pumpApp(tester, db);
+
+      await tapFilter(tester, 'Climbed');
+
+      expect(visibleNames(tester), <String>[climbedName]);
+      expect(climbedFlag(tester, climbedName), isTrue);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('fills the pill that was tapped and no other', (tester) async {
+      await pumpApp(tester, db);
+
+      const palette = CairnPalette.light;
+      Color? pill(String label) =>
+          tester.widget<Text>(find.text(label)).style?.color;
+
+      // All is where a launch starts.
+      expect(pill('All'), palette.onBrand);
+
+      await tapFilter(tester, 'To climb');
+      expect(pill('To climb'), palette.onBrand);
+      expect(pill('All'), palette.inkMuted);
+      expect(pill('Climbed'), palette.inkMuted);
+
+      await tapFilter(tester, 'Climbed');
+      expect(pill('Climbed'), palette.onBrand);
+      expect(pill('To climb'), palette.inkMuted);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('opens on All again after a relaunch', (tester) async {
+      // The filter is a question being asked now, not a setting. Coming back to
+      // a grid holding one peak of six, because Climbed was still selected a
+      // week ago, reads as lost data.
+      await pumpApp(tester, db);
+      await tapFilter(tester, 'Climbed');
+      expect(find.text('Nothing climbed yet'), findsOneWidget);
+
+      await disposeApp(tester);
+      await pumpApp(tester, db);
+
+      expect(
+        tester.widget<Text>(find.text('All')).style?.color,
+        CairnPalette.light.onBrand,
+      );
+      expect(find.byType(PeakCard), findsWidgets);
+
+      await disposeApp(tester);
+    });
+  });
+
+  group('a filter that admits nothing', () {
+    testWidgets('says what would put something under Climbed', (tester) async {
+      await pumpApp(tester, db);
+
+      await tapFilter(tester, 'Climbed');
+
+      expect(find.byType(PeakCard), findsNothing);
+      expect(find.text('Nothing climbed yet'), findsOneWidget);
+      expect(
+        find.text('Open a peak and mark it climbed. It shows up here after that.'),
+        findsOneWidget,
+      );
+      // The pills stay put. A screen that swallows the control that emptied it
+      // has no way back.
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('To climb'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('reads an empty To climb list as the finish line', (
+      tester,
+    ) async {
+      await climbEverything();
+      await pumpApp(tester, db);
+
+      await tapFilter(tester, 'To climb');
+
+      expect(find.byType(PeakCard), findsNothing);
+      expect(find.text('You have climbed them all'), findsOneWidget);
+      expect(
+        find.text('Every peak in your library is done. Nothing left to climb.'),
+        findsOneWidget,
+      );
+      expect(progressCount('6 of 6 climbed'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('an empty library keeps its own message', (tester) async {
+      for (final peak in await mountains.getAll()) {
+        await mountains.removeById(peak.id);
+      }
+
+      await pumpApp(tester, db);
+
+      // No progress to report and nothing to filter, so neither is drawn.
+      expect(find.text('No peaks yet'), findsOneWidget);
+      expect(find.text('All'), findsNothing);
+      expect(progressCount('0 of 0 climbed'), findsNothing);
+
+      await disposeApp(tester);
+    });
+  });
+
+  testWidgets('the third row still shows under the pills on a real phone', (
+    tester,
+  ) async {
+    // The grid has been broken twice by things added above it. T13 added a
+    // third line to the card and cost the list its third row; T20 added the
+    // progress line and the pills and cost it the room those take.
+    //
+    // Six cards fully above the nav is gone at this card height, so the rule
+    // this holds is the one that is left: the third row has to start far enough
+    // above the nav to say the list carries on. Below that it reads as the end
+    // of the library, and the whole point of the screen is that the reader sees
+    // the set.
+    //
+    // Measured on the emulator this project ships against: 1080x2400 at density
+    // 420, so 411 by 914 dp, with a 24dp inset top and bottom. The test font is
+    // wider than Manrope and pushes the cards taller than a device does, so the
+    // margin here is the pessimistic one.
+    await pumpApp(
+      tester,
+      db,
+      physicalSize: const Size(1080, 2400),
+      devicePixelRatio: 2.625,
+      padding: const FakeViewPadding(top: 63, bottom: 63),
+    );
+
+    final cards = find.byType(PeakCard);
+    expect(cards, findsNWidgets(6), reason: 'all six are in the list');
+
+    final navTop = tester.getRect(find.byType(PillNav)).top;
+    final thirdRow = tester.getRect(cards.at(4)).top;
+
+    expect(
+      thirdRow,
+      lessThan(navTop - CairnSpace.x24),
+      reason:
+          'the third row has to break the fold by more than a hairline. '
+          'Anything new above the grid comes out of this margin.',
+    );
 
     await disposeApp(tester);
   });

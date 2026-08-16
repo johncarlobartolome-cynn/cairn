@@ -188,6 +188,12 @@ abstract final class CairnSize {
   /// Hairline borders and dividers.
   static const double hairline = 1;
 
+  /// Height of the progress track on the peaks list. The spec gives `accentSoft`
+  /// to a progress track without sizing it; 6 keeps the bar readable at a glance
+  /// while staying quieter than anything else on that screen, which is the point
+  /// of it. The grid is what shows progress; this only confirms it.
+  static const double progressTrack = 6;
+
   /// Minimum height of a primary button, and of any field you tap rather than
   /// type into. The spec sizes the button's label and not the control, so this
   /// is the smallest comfortable touch target rather than a transcribed number.

@@ -7,17 +7,21 @@ import 'package:go_router/go_router.dart';
 import '../../app/router.dart';
 import '../../app/theme/tokens.dart';
 import '../../data/providers.dart';
-import '../../shared/extensions/theme_context.dart';
 import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/filter_pill_row.dart';
 import '../../shared/widgets/peak_card.dart';
 import '../../shared/widgets/pill_nav.dart';
 import 'peak_facts.dart';
+import 'peaks_board.dart';
+import 'peaks_providers.dart';
+import 'widgets/progress_heading.dart';
 
 /// Cards a row. Two, because the app's one job on this screen is showing a set of
 /// six at a glance.
 const int _columns = 2;
 
-/// The home screen: every peak in the library as a photo card, two to a row.
+/// The home screen: a greeting, how far up the library the climber is, the three
+/// filters, and every peak the filter admits as a photo card, two to a row.
 ///
 /// The rows are real, straight off the database, and the climbed treatment reads
 /// the ids that actually have a climb against them.
@@ -38,9 +42,7 @@ const int _columns = 2;
 /// won on one device on one day, and the thing at stake is the app appearing to
 /// have lost a climb. This makes it a rule instead: cards paint once the app
 /// knows what to say about them, and until then the screen says it is reading.
-///
-/// The progress strip and the All / To climb / Climbed pills from the design
-/// spec are not here yet. Both are E4, with the progress view.
+/// `peaks_providers.dart` holds the gate now that the strip sits behind it too.
 ///
 /// It has no [Scaffold] and no [SafeArea] of its own: the nav shell owns both, so
 /// the floating nav and this list read the same bottom inset.
@@ -49,41 +51,37 @@ class PeaksScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final peaks = ref.watch(mountainsProvider);
-    // A peak counts as climbed once it has one climb against it.
-    final climbed = ref.watch(climbedMountainIdsProvider);
+    final board = ref.watch(peaksBoardProvider);
 
-    return switch ((peaks, climbed)) {
-      (AsyncValue(hasError: true), _) ||
-      (_, AsyncValue(hasError: true)) => const _PeaksMessage(
+    return switch (board) {
+      AsyncValue(hasError: true) => const _PeaksMessage(
         icon: Icons.cloud_off_rounded,
         title: 'Could not read the library',
         message: 'Something went wrong opening your peaks.',
       ),
-      // An empty library needs no climbed set to be sure of itself.
-      (AsyncValue(hasValue: true, value: final rows?), _) when rows.isEmpty =>
+      // Nothing to filter and no progress to report, so the whole header goes
+      // with the grid rather than sitting over a hole.
+      AsyncValue(hasValue: true, value: final rows?) when rows.libraryIsEmpty =>
         const _PeaksMessage(
           icon: Icons.landscape_outlined,
           title: 'No peaks yet',
           message: 'Your library is empty.',
         ),
-      (
-        AsyncValue(hasValue: true, value: final rows?),
-        AsyncValue(hasValue: true, value: final ids?),
-      ) => _PeaksList(peaks: rows, climbedIds: ids),
+      AsyncValue(hasValue: true, value: final rows?) => _PeaksList(board: rows),
       _ => const Center(child: CircularProgressIndicator()),
     };
   }
 }
 
-class _PeaksList extends StatelessWidget {
-  const _PeaksList({required this.peaks, required this.climbedIds});
+class _PeaksList extends ConsumerWidget {
+  const _PeaksList({required this.board});
 
-  final List<Mountain> peaks;
-  final Set<int> climbedIds;
+  final PeaksBoard board;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final peaks = board.visible;
+
     // Two peaks a row. Six of them then take three rows and land inside one
     // screen, so the climbed and unclimbed pattern reads as a set without
     // scrolling, which is the job the design gives this list. The reference mock
@@ -100,20 +98,114 @@ class _PeaksList extends StatelessWidget {
         // Never a literal. The nav publishes what it costs a scroll view.
         PillNav.clearanceFor(context),
       ),
-      // One extra for the heading, which scrolls away with the rows.
-      itemCount: rows + 1,
+      // One extra for the header, which scrolls away with the rows. A filter
+      // that admits nothing puts one card in the grid's place instead of rows,
+      // and the header stays where it is: the pill that emptied the list has to
+      // remain on screen, or the only way back is a filter the reader can no
+      // longer see.
+      itemCount: 1 + (peaks.isEmpty ? 1 : rows),
       separatorBuilder: (context, index) =>
           const SizedBox(height: CairnSpace.cardGap),
       itemBuilder: (context, index) {
-        if (index == 0) return _Heading(count: peaks.length);
+        if (index == 0) {
+          return _Header(
+            board: board,
+            onSelected: (filter) =>
+                ref.read(peakFilterProvider.notifier).select(filter),
+          );
+        }
+
+        if (peaks.isEmpty) return _NothingHere(board: board);
 
         final start = (index - 1) * _columns;
         return _PeakRow(
           peaks: peaks.sublist(start, min(start + _columns, peaks.length)),
-          climbedIds: climbedIds,
+          climbedIds: board.climbedIds,
         );
       },
     );
+  }
+}
+
+/// Greeting, progress strip, filter pills. The screen's top matter, in the order
+/// the design lists it, and all of it scrolls away with the grid.
+///
+/// Pinning it was the alternative and it costs the grid the room permanently.
+/// This screen's whole argument is that six peaks read as one set, so the row
+/// that can scroll off is the one that should.
+class _Header extends StatelessWidget {
+  const _Header({required this.board, required this.onSelected});
+
+  final PeaksBoard board;
+  final ValueChanged<PeakFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The greeting used to read "Your / 6 peaks". The count moved into the
+        // heading's progress line, which says how many of the six are climbed
+        // and needs the total to say it. Printing 6 twice inside 40dp is the
+        // duplication the never-truncate rule tells you to fix in the data
+        // rather than in the layout.
+        ProgressHeading(climbed: board.climbedTotal, total: board.libraryTotal),
+        const SizedBox(height: CairnSpace.x20),
+        FilterPillRow(
+          labels: <String>[
+            for (final filter in PeakFilter.values) filter.label,
+          ],
+          selectedIndex: board.filter.index,
+          onSelected: (index) => onSelected(PeakFilter.values[index]),
+          // The row sits inside a list that is already padded to the page
+          // margin, so it brings none of its own.
+          padding: EdgeInsets.zero,
+        ),
+        // Half the gap to the first card. The list separator adds the other half.
+        const SizedBox(height: CairnSpace.x12),
+      ],
+    );
+  }
+}
+
+/// What a filter says when it admits nothing.
+///
+/// Both cases are ordinary states rather than errors, and one of them is the
+/// best thing that can happen in this app, so neither gets a blank screen. Read
+/// these aloud before changing them.
+class _NothingHere extends StatelessWidget {
+  const _NothingHere({required this.board});
+
+  final PeaksBoard board;
+
+  @override
+  Widget build(BuildContext context) {
+    final (IconData icon, String title, String message) = switch (board.filter) {
+      // Every peak is climbed, which is the whole point of the app, so it reads
+      // as the finish line rather than as a list with nothing in it. The trophy
+      // is the same glyph the "All peaks" badge wears.
+      PeakFilter.toClimb => (
+        Icons.workspace_premium_rounded,
+        'You have climbed them all',
+        'Every peak in your library is done. Nothing left to climb.',
+      ),
+      // Nothing climbed yet. It says what would put something here, in the
+      // words the app uses for the action itself.
+      PeakFilter.climbed => (
+        Icons.hiking_rounded,
+        'Nothing climbed yet',
+        'Open a peak and mark it climbed. It shows up here after that.',
+      ),
+      // Unreachable: an empty library never gets this far, and All admits
+      // everything. A screen with no answer is worse than a plain one.
+      PeakFilter.all => (
+        Icons.landscape_outlined,
+        'No peaks yet',
+        'Your library is empty.',
+      ),
+    };
+
+    return EmptyState(icon: icon, title: title, message: message);
   }
 }
 
@@ -178,31 +270,6 @@ class _Card extends StatelessWidget {
       // of my six have I climbed", and a province does not help with that.
       meta: [peak.elevationLabel, peak.difficultyLabel],
       onTap: () => context.push(CairnRoute.mountain(peak.id)),
-    );
-  }
-}
-
-/// Two lines, two weights, per the design's headline rule.
-///
-/// The count comes off the rows on screen rather than the six seeds, so a peak
-/// the user adds later is counted with no change here.
-class _Heading extends StatelessWidget {
-  const _Heading({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = context.cairnText;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Your', style: text.displayLine1),
-        Text(count == 1 ? '1 peak' : '$count peaks', style: text.displayLine2),
-        // Half the gap to the first card. The list separator adds the other half.
-        const SizedBox(height: CairnSpace.x12),
-      ],
     );
   }
 }

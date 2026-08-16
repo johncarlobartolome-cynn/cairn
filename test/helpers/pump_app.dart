@@ -16,15 +16,24 @@ import 'package:flutter_test/flutter_test.dart';
 /// tapped.
 /// Extra provider overrides go on top of the database one, for a test that has
 /// to control when a read answers rather than what it answers.
+///
+/// [physicalSize], [devicePixelRatio] and [padding] describe the phone. The
+/// defaults are the plain one above; pass a real device's numbers when the test
+/// is about how much of a screen something takes up, since that answer is
+/// different on every handset.
 Future<void> pumpApp(
   WidgetTester tester,
   AppDatabase db, {
   String location = '/',
   ThemeMode themeMode = ThemeMode.system,
   List<Override> overrides = const <Override>[],
+  Size physicalSize = const Size(1080, 2340),
+  double devicePixelRatio = 3,
+  FakeViewPadding padding = FakeViewPadding.zero,
 }) async {
-  tester.view.physicalSize = const Size(1080, 2340);
-  tester.view.devicePixelRatio = 3;
+  tester.view.physicalSize = physicalSize;
+  tester.view.devicePixelRatio = devicePixelRatio;
+  tester.view.padding = padding;
   addTearDown(tester.view.reset);
 
   await tester.pumpWidget(
