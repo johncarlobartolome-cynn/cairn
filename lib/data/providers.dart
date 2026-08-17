@@ -67,10 +67,6 @@ final mountainsProvider = StreamProvider<List<Mountain>>(
   (ref) => ref.watch(mountainDaoProvider).watchAll(),
 );
 
-final mountainCountProvider = StreamProvider<int>(
-  (ref) => ref.watch(mountainDaoProvider).watchCount(),
-);
-
 /// One peak, or null when nothing in the library has that id.
 ///
 /// Auto-disposed, unlike the list providers: a detail screen is the only watcher
