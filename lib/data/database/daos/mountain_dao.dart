@@ -20,13 +20,6 @@ class MountainDao extends DatabaseAccessor<AppDatabase> {
   Stream<Mountain?> watchById(int id) =>
       (select(_mountains)..where((m) => m.id.equals(id))).watchSingleOrNull();
 
-  /// Drives the "X of Y climbed" counter.
-  Stream<int> watchCount() {
-    final count = _mountains.id.count();
-    final query = selectOnly(_mountains)..addColumns([count]);
-    return query.map((row) => row.read(count)!).watchSingle();
-  }
-
   /// How many peaks the library holds, read once.
   ///
   /// The "all peaks" badge asks this rather than assuming six. A user is

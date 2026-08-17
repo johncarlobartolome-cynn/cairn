@@ -190,8 +190,8 @@ void main() {
     expect(after.elevationM, 2928);
   });
 
-  test('the count stream reports six', () async {
-    expect(await dao.watchCount().first, 6);
+  test('the library holds six peaks after seeding', () async {
+    expect((await dao.getAll()).length, 6);
   });
 
   test('a peak with a duplicate name is rejected', () async {
