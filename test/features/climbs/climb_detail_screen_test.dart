@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cairn/app/router.dart';
+import 'package:cairn/app/theme/tokens.dart';
 import 'package:cairn/data/database/daos/climb_dao.dart';
 import 'package:cairn/data/database/daos/mountain_dao.dart';
 import 'package:cairn/data/database/database.dart';
@@ -8,6 +9,7 @@ import 'package:cairn/features/climbs/climb_facts.dart';
 import 'package:cairn/features/climbs/widgets/climb_photo.dart';
 import 'package:cairn/features/climbs/widgets/climb_photo_strip.dart';
 import 'package:cairn/features/climbs/widgets/missing_photo.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -185,11 +187,19 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('the photo block is the same height however many there are', (
+  testWidgets('the photo block does not grow with the number of photos', (
     tester,
   ) async {
     // Sideways rather than stacked, so the day and the notes sit in the same
-    // place whether the climb carries one photo or nine.
+    // place on a climb carrying three photographs and on one carrying twelve.
+    // That is the property worth holding: how far you scroll to read your own
+    // note cannot depend on how many pictures you took.
+    //
+    // **A single photo is the one that sits lower, by design.** T26 gave a strip
+    // with company 32dp of its width to the photo behind it, so the next one is
+    // visibly there; a lone photo has nothing to make room for and keeps the
+    // whole width, which at 4:3 makes it 24dp taller. One step, once, between
+    // one photo and two, and nothing after that.
     writePickedFile(documents, 'climb_1755300000000001_a1b2c3d4.jpg');
     final int one = await logClimb(
       photoFilenames: const <String>['climb_1755300000000001_a1b2c3d4.jpg'],
@@ -201,7 +211,7 @@ void main() {
         .dy;
     await disposeApp(tester);
 
-    final int many = (await climbs.logClimb(
+    final int three = (await climbs.logClimb(
       mountainId: await pulagId(),
       date: day,
       photoFilenames: const <String>[
@@ -211,8 +221,76 @@ void main() {
       ],
     )).id;
 
-    await openClimb(tester, many);
-    expect(tester.getTopLeft(find.text(climbDayLabel(day))).dy, singleDay);
+    await openClimb(tester, three);
+    final double threeDay = tester.getTopLeft(find.text(climbDayLabel(day))).dy;
+    await disposeApp(tester);
+
+    final int twelve = (await climbs.logClimb(
+      mountainId: await pulagId(),
+      date: day,
+      photoFilenames: <String>[
+        for (var i = 1; i <= 12; i++)
+          'climb_17553000000000${i.toString().padLeft(2, '0')}_a1b2c3d4.jpg',
+      ],
+    )).id;
+
+    await openClimb(tester, twelve);
+    expect(
+      tester.getTopLeft(find.text(climbDayLabel(day))).dy,
+      threeDay,
+      reason: 'twelve photos read at the same height as three',
+    );
+    expect(
+      threeDay,
+      lessThan(singleDay),
+      reason: 'a strip with company gives up the peek a lone photo keeps',
+    );
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a second photo is visible behind the first', (tester) async {
+    // The signal that a strip scrolls at all. Nine photographs used to look
+    // exactly like one, because every card was as wide as the strip and the
+    // second one sat entirely off screen.
+    writePickedFile(documents, 'climb_1755300000000001_a1b2c3d4.jpg');
+    writePickedFile(documents, 'climb_1755300000000002_e5f6a7b8.jpg');
+
+    final int pair = (await climbs.logClimb(
+      mountainId: await pulagId(),
+      date: day,
+      photoFilenames: const <String>[
+        'climb_1755300000000001_a1b2c3d4.jpg',
+        'climb_1755300000000002_e5f6a7b8.jpg',
+      ],
+    )).id;
+
+    await openClimb(tester, pair);
+
+    final Finder strip = find.byType(ClimbPhotoStrip);
+    final double stripRight = tester.getRect(strip).right;
+    final Rect first = tester.getRect(
+      find.descendant(of: strip, matching: find.byType(ClimbPhoto)).first,
+    );
+    final Rect second = tester.getRect(
+      find.descendant(of: strip, matching: find.byType(ClimbPhoto)).at(1),
+    );
+
+    expect(
+      first.right,
+      lessThan(stripRight),
+      reason: 'the front photo stops short of the edge',
+    );
+    expect(
+      second.left,
+      lessThan(stripRight),
+      reason: 'so the next photo is already on screen',
+    );
+    expect(
+      stripRight - second.left,
+      greaterThan(CairnSize.hairline * 8),
+      reason: 'and enough of it shows to read as a photograph',
+    );
 
     await disposeApp(tester);
   });

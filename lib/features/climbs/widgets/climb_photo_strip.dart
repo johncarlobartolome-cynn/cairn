@@ -12,8 +12,19 @@ import 'climb_photo.dart';
 /// pictures you took. Across, the block is the same height whether there is one
 /// photo or nine, and nothing below it moves.
 ///
-/// Each card fills the width it is given, so a single photo reads as a hero and
-/// a second one announces itself by being half on screen as you swipe.
+/// A single photo fills the width and reads as a hero. **Two or more give up
+/// [_peek] of it, so the edge of the next one is on screen.**
+///
+/// That was this widget's stated intent from the day it was written and the code
+/// did not do it: every card was exactly as wide as the strip, so a climb
+/// carrying nine photographs looked the same as a climb carrying one. Nothing
+/// said there was more to see, and a strip that scrolls with no sign that it
+/// scrolls is a strip nobody swipes. Found in T26 by photographing a nine-photo
+/// climb, which is a state nobody had put on a screen before.
+///
+/// A slice of the next photograph rather than a counter or a row of dots. It is
+/// the quieter signal and the clearer one: the edge of a different picture is
+/// unambiguous at a glance, and this app does not decorate.
 class ClimbPhotoStrip extends StatelessWidget {
   const ClimbPhotoStrip({required this.filenames, super.key});
 
@@ -22,26 +33,37 @@ class ClimbPhotoStrip extends StatelessWidget {
   /// frame reads as a photo that failed rather than as a climb with none.
   final List<String> filenames;
 
+  /// How much of the strip the front card gives up when it has company.
+  ///
+  /// 32 leaves about 20dp of the next photograph showing once the 12dp gap
+  /// between them is taken out of it, which reads as another picture rather than
+  /// as a stripe.
+  static const double _peek = CairnSpace.x32;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double cardWidth = constraints.maxWidth;
+        final bool alone = filenames.length == 1;
+        final double cardWidth = alone
+            ? constraints.maxWidth
+            : constraints.maxWidth - _peek;
 
         return SizedBox(
           // Its own token, not the peak card's. They were the same 4:3 until
           // the peaks grid needed a shallower card to fit six on a screen, and
           // this strip has no such fight: a photo of a climb is as tall as it
           // deserves to be.
+          //
+          // Off the card rather than off the strip, so a photo keeps its shape
+          // when it gives room to the one behind it.
           height: cardWidth / CairnSize.climbPhotoAspect,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: filenames.length,
             // No scrolling at all when there is one photo, so a single card
             // does not wobble under a thumb.
-            physics: filenames.length == 1
-                ? const NeverScrollableScrollPhysics()
-                : null,
+            physics: alone ? const NeverScrollableScrollPhysics() : null,
             separatorBuilder: (_, _) =>
                 const SizedBox(width: CairnSpace.cardGap),
             itemBuilder: (context, index) => SizedBox(

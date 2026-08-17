@@ -2,6 +2,7 @@ import 'package:cairn/app/theme/tokens.dart';
 import 'package:cairn/shared/widgets/cairn_mark.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/pump_widget.dart';
@@ -139,6 +140,53 @@ void main() {
           'the card grew from ${twoFacts}dp to ${threeFacts}dp on one extra '
           'fact, and the grid pays that three rows over',
     );
+  });
+
+  testWidgets('a name longer than any of the six is never cut', (tester) async {
+    // The card held its name to two lines and an ellipsis until T26, which was
+    // fine for the six seeded peaks and wrong for the app: it lets somebody add
+    // a peak of their own, and a `…` hides exactly the part that tells two
+    // traverses of the same mountain apart.
+    //
+    // The fake test font is about twice Manrope's width, so a name that fits
+    // here fits on the phone with room to spare, and a name that is cut here
+    // would be cut anywhere.
+    const long = 'Mt. Guiting-Guiting Traverse from Magdiwang to San Fernando';
+
+    await pumpCairn(
+      tester,
+      const PeakCard(name: long, climbed: false, meta: ['2,058 m', 'Hard']),
+      // Half of a 360dp phone, which is the width the grid gives a card.
+      width: 170,
+    );
+
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(long));
+    expect(paragraph.didExceedMaxLines, isFalse);
+    expect(paragraph.text.toPlainText(), long);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a long name makes the card taller rather than shorter text', (
+    tester,
+  ) async {
+    // Where the wrapped name goes. A row of cards is measured by
+    // IntrinsicHeight, so the card growing is what the grid absorbs, and this is
+    // the number it absorbs.
+    const short = 'Mt. Ulap';
+    const long = 'Mt. Guiting-Guiting Traverse from Magdiwang to San Fernando';
+
+    Future<double> heightOf(String name) async {
+      await pumpCairn(
+        tester,
+        PeakCard(name: name, climbed: false, meta: const ['2,058 m', 'Hard']),
+        width: 170,
+      );
+      return tester
+          .renderObject<RenderBox>(find.byType(PeakCard))
+          .getMaxIntrinsicHeight(170);
+    }
+
+    expect(await heightOf(long), greaterThan(await heightOf(short)));
   });
 
   testWidgets('reports taps', (tester) async {
