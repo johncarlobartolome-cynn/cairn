@@ -99,49 +99,54 @@ void main() {
     expect((await storedClimbs()).single.companions, 'Mara');
   });
 
-  test('the same peak on the same day saves twice, no duplicate check', () async {
-    // A peak can be climbed as often as you like, and twice in one day is a
-    // real answer. Nothing about a climb is unique.
-    final id = await pulagId();
-    final day = DateTime(2026, 8, 11);
+  test(
+    'the same peak on the same day saves twice, no duplicate check',
+    () async {
+      // A peak can be climbed as often as you like, and twice in one day is a
+      // real answer. Nothing about a climb is unique.
+      final id = await pulagId();
+      final day = DateTime(2026, 8, 11);
 
-    final first = await controller().save(mountainId: id, date: day);
-    final second = await controller().save(mountainId: id, date: day);
+      final first = await controller().save(mountainId: id, date: day);
+      final second = await controller().save(mountainId: id, date: day);
 
-    expect(first, isNotNull);
-    expect(second, isNotNull);
-    expect(first, isNot(second));
-    expect(await storedClimbs(), hasLength(2));
-  });
+      expect(first, isNotNull);
+      expect(second, isNotNull);
+      expect(first, isNot(second));
+      expect(await storedClimbs(), hasLength(2));
+    },
+  );
 
-  test('the climbs stream carries the new row with nothing asking it to', () async {
-    // The read side is a Drift watch(), so a screen showing climbs updates off
-    // the insert itself. Nothing in this test refreshes or invalidates
-    // anything, which is the assertion.
-    final seen = <List<Climb>>[];
-    final sub = container.listen<AsyncValue<List<Climb>>>(
-      climbsProvider,
-      (_, next) {
+  test(
+    'the climbs stream carries the new row with nothing asking it to',
+    () async {
+      // The read side is a Drift watch(), so a screen showing climbs updates off
+      // the insert itself. Nothing in this test refreshes or invalidates
+      // anything, which is the assertion.
+      final seen = <List<Climb>>[];
+      final sub = container.listen<AsyncValue<List<Climb>>>(climbsProvider, (
+        _,
+        next,
+      ) {
         final rows = next.value;
         if (rows != null) seen.add(rows);
-      },
-      fireImmediately: true,
-    );
-    addTearDown(sub.close);
+      }, fireImmediately: true);
+      addTearDown(sub.close);
 
-    await pumpEventQueue();
-    expect(seen.last, isEmpty, reason: 'the log starts empty');
+      await pumpEventQueue();
+      expect(seen.last, isEmpty, reason: 'the log starts empty');
 
-    await controller().save(
-      mountainId: await pulagId(),
-      date: DateTime(2026, 8, 11),
-      notes: 'Sea of clouds at sunrise.',
-    );
-    await pumpEventQueue();
+      await controller().save(
+        mountainId: await pulagId(),
+        date: DateTime(2026, 8, 11),
+        notes: 'Sea of clouds at sunrise.',
+      );
+      await pumpEventQueue();
 
-    expect(seen.last, hasLength(1));
-    expect(seen.last.single.notes, 'Sea of clouds at sunrise.');
-  });
+      expect(seen.last, hasLength(1));
+      expect(seen.last.single.notes, 'Sea of clouds at sunrise.');
+    },
+  );
 
   test('the ids of climbed peaks arrive on their own stream too', () async {
     // What T16 hangs the desaturated-to-colour flip off. Proven here so that

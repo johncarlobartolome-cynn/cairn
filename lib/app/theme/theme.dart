@@ -143,54 +143,50 @@ abstract final class CairnTheme {
         elevation: 0,
         showDragHandle: true,
         dragHandleColor: p.hairline,
-        shape: const RoundedRectangleBorder(
-          borderRadius: CairnRadius.sheetTop,
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: CairnRadius.sheetTop),
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: p.brand,
         contentTextStyle: CairnType.body.copyWith(color: p.onBrand),
         behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(
-          borderRadius: CairnRadius.fieldAll,
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: CairnRadius.fieldAll),
       ),
     );
   }
 
   static ColorScheme _scheme(CairnPalette p) => ColorScheme(
-        brightness: p.brightness,
-        primary: p.accent,
-        onPrimary: p.onBrand,
-        primaryContainer: p.accentSoft,
-        onPrimaryContainer: p.brand,
-        secondary: p.brand,
-        onSecondary: p.onBrand,
-        secondaryContainer: p.accentSoft,
-        onSecondaryContainer: p.brand,
-        tertiary: p.gold,
-        onTertiary: p.isDark ? p.ground : p.ink,
-        tertiaryContainer: p.accentSoft,
-        onTertiaryContainer: p.brand,
-        surface: p.surface,
-        onSurface: p.ink,
-        surfaceContainerLowest: p.surface,
-        surfaceContainerLow: p.surfaceAlt,
-        surfaceContainer: p.surfaceAlt,
-        surfaceContainerHigh: p.surfaceAlt,
-        surfaceContainerHighest: p.surfaceAlt,
-        surfaceTint: p.accent,
-        onSurfaceVariant: p.inkMuted,
-        outline: p.hairline,
-        outlineVariant: p.hairline,
-        shadow: p.accent,
-        scrim: p.ink,
-        inverseSurface: p.brand,
-        onInverseSurface: p.onBrand,
-        inversePrimary: p.accentSoft,
-        error: p.error,
-        onError: p.onError,
-      );
+    brightness: p.brightness,
+    primary: p.accent,
+    onPrimary: p.onBrand,
+    primaryContainer: p.accentSoft,
+    onPrimaryContainer: p.brand,
+    secondary: p.brand,
+    onSecondary: p.onBrand,
+    secondaryContainer: p.accentSoft,
+    onSecondaryContainer: p.brand,
+    tertiary: p.gold,
+    onTertiary: p.isDark ? p.ground : p.ink,
+    tertiaryContainer: p.accentSoft,
+    onTertiaryContainer: p.brand,
+    surface: p.surface,
+    onSurface: p.ink,
+    surfaceContainerLowest: p.surface,
+    surfaceContainerLow: p.surfaceAlt,
+    surfaceContainer: p.surfaceAlt,
+    surfaceContainerHigh: p.surfaceAlt,
+    surfaceContainerHighest: p.surfaceAlt,
+    surfaceTint: p.accent,
+    onSurfaceVariant: p.inkMuted,
+    outline: p.hairline,
+    outlineVariant: p.hairline,
+    shadow: p.accent,
+    scrim: p.ink,
+    inverseSurface: p.brand,
+    onInverseSurface: p.onBrand,
+    inversePrimary: p.accentSoft,
+    error: p.error,
+    onError: p.onError,
+  );
 
   /// Maps the nine spec roles onto Material's thirteen slots so an unstyled
   /// `Text`, `AppBar` or button picks up Cairn type with no override.
@@ -256,16 +252,16 @@ class CairnTextStyles extends ThemeExtension<CairnTextStyles> {
   });
 
   factory CairnTextStyles.fromPalette(CairnPalette p) => CairnTextStyles(
-        displayLine1: CairnType.displayLine1.copyWith(color: p.ink),
-        displayLine2: CairnType.displayLine2.copyWith(color: p.ink),
-        screenTitle: CairnType.screenTitle.copyWith(color: p.ink),
-        sectionLabel: CairnType.sectionLabel.copyWith(color: p.inkMuted),
-        body: CairnType.body.copyWith(color: p.ink),
-        meta: CairnType.meta.copyWith(color: p.inkMuted),
-        statValue: CairnType.statValue.copyWith(color: p.ink),
-        statCaption: CairnType.statCaption.copyWith(color: p.inkMuted),
-        button: CairnType.button.copyWith(color: p.ink),
-      );
+    displayLine1: CairnType.displayLine1.copyWith(color: p.ink),
+    displayLine2: CairnType.displayLine2.copyWith(color: p.ink),
+    screenTitle: CairnType.screenTitle.copyWith(color: p.ink),
+    sectionLabel: CairnType.sectionLabel.copyWith(color: p.inkMuted),
+    body: CairnType.body.copyWith(color: p.ink),
+    meta: CairnType.meta.copyWith(color: p.inkMuted),
+    statValue: CairnType.statValue.copyWith(color: p.ink),
+    statCaption: CairnType.statCaption.copyWith(color: p.inkMuted),
+    button: CairnType.button.copyWith(color: p.ink),
+  );
 
   final TextStyle displayLine1;
   final TextStyle displayLine2;
@@ -288,18 +284,17 @@ class CairnTextStyles extends ThemeExtension<CairnTextStyles> {
     TextStyle? statValue,
     TextStyle? statCaption,
     TextStyle? button,
-  }) =>
-      CairnTextStyles(
-        displayLine1: displayLine1 ?? this.displayLine1,
-        displayLine2: displayLine2 ?? this.displayLine2,
-        screenTitle: screenTitle ?? this.screenTitle,
-        sectionLabel: sectionLabel ?? this.sectionLabel,
-        body: body ?? this.body,
-        meta: meta ?? this.meta,
-        statValue: statValue ?? this.statValue,
-        statCaption: statCaption ?? this.statCaption,
-        button: button ?? this.button,
-      );
+  }) => CairnTextStyles(
+    displayLine1: displayLine1 ?? this.displayLine1,
+    displayLine2: displayLine2 ?? this.displayLine2,
+    screenTitle: screenTitle ?? this.screenTitle,
+    sectionLabel: sectionLabel ?? this.sectionLabel,
+    body: body ?? this.body,
+    meta: meta ?? this.meta,
+    statValue: statValue ?? this.statValue,
+    statCaption: statCaption ?? this.statCaption,
+    button: button ?? this.button,
+  );
 
   @override
   CairnTextStyles lerp(ThemeExtension<CairnTextStyles>? other, double t) {

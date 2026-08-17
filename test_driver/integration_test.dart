@@ -19,20 +19,21 @@ String get _outputDir =>
 
 Future<void> main() async {
   await integrationDriver(
-    onScreenshot: (String name, List<int> bytes, [Map<String, Object?>? args]) async {
-      if (bytes.isEmpty) {
-        // Returning false fails the run, which is the point: a zero-byte image is
-        // worse than no image, because it looks like evidence.
-        print('screenshot $name came back empty');
-        return false;
-      }
+    onScreenshot:
+        (String name, List<int> bytes, [Map<String, Object?>? args]) async {
+          if (bytes.isEmpty) {
+            // Returning false fails the run, which is the point: a zero-byte image is
+            // worse than no image, because it looks like evidence.
+            print('screenshot $name came back empty');
+            return false;
+          }
 
-      final File file = File('$_outputDir/$name.png');
-      await file.parent.create(recursive: true);
-      await file.writeAsBytes(bytes, flush: true);
-      print('wrote ${file.path} (${bytes.length} bytes)');
-      return true;
-    },
+          final File file = File('$_outputDir/$name.png');
+          await file.parent.create(recursive: true);
+          await file.writeAsBytes(bytes, flush: true);
+          print('wrote ${file.path} (${bytes.length} bytes)');
+          return true;
+        },
     // The default handler dumps every screenshot's bytes into a JSON file beside
     // them. The PNGs are the output; the JSON is tens of megabytes of nothing.
     responseDataCallback: null,

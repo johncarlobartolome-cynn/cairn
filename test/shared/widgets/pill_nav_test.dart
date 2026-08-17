@@ -107,9 +107,7 @@ void main() {
     // 12 rather than double-counting.
     await pumpCairn(
       tester,
-      SafeArea(
-        child: PillNav(currentIndex: 0, onSelected: (_) {}),
-      ),
+      SafeArea(child: PillNav(currentIndex: 0, onSelected: (_) {})),
       alignment: Alignment.bottomCenter,
       safeAreaInset: const EdgeInsets.only(bottom: gestureInset),
     );

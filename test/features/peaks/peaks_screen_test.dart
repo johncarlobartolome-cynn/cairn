@@ -49,7 +49,10 @@ void main() {
 
   Future<void> climbEverything() async {
     for (final peak in await mountains.getAll()) {
-      await climbs.logClimb(mountainId: peak.id, date: DateTime.utc(2026, 8, 15));
+      await climbs.logClimb(
+        mountainId: peak.id,
+        date: DateTime.utc(2026, 8, 15),
+      );
     }
   }
 
@@ -89,7 +92,10 @@ void main() {
 
     // The three signals the design names, read off the cards themselves.
     expect(
-      find.descendant(of: cardFor(climbedName), matching: find.byType(CairnMark)),
+      find.descendant(
+        of: cardFor(climbedName),
+        matching: find.byType(CairnMark),
+      ),
       findsOneWidget,
     );
     expect(
@@ -175,7 +181,9 @@ void main() {
     await pumpApp(
       tester,
       db,
-      overrides: [climbedMountainIdsProvider.overrideWith((ref) => gate.stream)],
+      overrides: [
+        climbedMountainIdsProvider.overrideWith((ref) => gate.stream),
+      ],
     );
 
     expect(find.byType(PeakCard), findsNothing);
@@ -337,7 +345,9 @@ void main() {
       expect(find.byType(PeakCard), findsNothing);
       expect(find.text('Nothing climbed yet'), findsOneWidget);
       expect(
-        find.text('Open a peak and mark it climbed. It shows up here after that.'),
+        find.text(
+          'Open a peak and mark it climbed. It shows up here after that.',
+        ),
         findsOneWidget,
       );
       // The pills stay put. A screen that swallows the control that emptied it
@@ -416,7 +426,9 @@ void main() {
     final navTop = tester.getRect(find.byType(PillNav)).top;
     final firstRowTop = tester.getRect(cards.at(0)).top;
     final photo = tester.getRect(
-      find.descendant(of: cards.at(0), matching: find.byType(AspectRatio)).first,
+      find
+          .descendant(of: cards.at(0), matching: find.byType(AspectRatio))
+          .first,
     );
 
     expect(

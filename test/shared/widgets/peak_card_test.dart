@@ -10,7 +10,6 @@ import '../../helpers/pump_widget.dart';
 /// rather than eyeballed. Three signals carry it: the saturation filter, the
 /// name's colour, and the mark.
 void main() {
-
   Color? nameColour(WidgetTester tester, String name) =>
       tester.widget<Text>(find.text(name)).style?.color;
 
@@ -131,11 +130,7 @@ void main() {
     }
 
     final twoFacts = await heightOf(['811 m', 'Moderate']);
-    final threeFacts = await heightOf([
-      'Batangas',
-      '811 m',
-      'Moderate',
-    ]);
+    final threeFacts = await heightOf(['Batangas', '811 m', 'Moderate']);
 
     expect(
       threeFacts,

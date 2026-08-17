@@ -49,9 +49,13 @@ void main() {
       tester,
       const Row(
         children: [
-          Expanded(child: StatTile(value: 'Very hard', caption: 'Difficulty')),
+          Expanded(
+            child: StatTile(value: 'Very hard', caption: 'Difficulty'),
+          ),
           SizedBox(width: CairnSpace.x12),
-          Expanded(child: StatTile(value: '2,954 m', caption: 'Elevation')),
+          Expanded(
+            child: StatTile(value: '2,954 m', caption: 'Elevation'),
+          ),
         ],
       ),
       width: 200,
@@ -107,7 +111,9 @@ void main() {
               child: StatTile(value: 'Zambales (Cabangan)', caption: 'Region'),
             ),
             SizedBox(width: CairnSpace.x12),
-            Expanded(child: StatTile(value: '3 h', caption: 'Hours')),
+            Expanded(
+              child: StatTile(value: '3 h', caption: 'Hours'),
+            ),
           ],
         ),
       ),

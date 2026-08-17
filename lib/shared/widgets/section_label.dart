@@ -28,7 +28,10 @@ class SectionLabel extends StatelessWidget {
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
-      children: [Expanded(child: label), trailing!],
+      children: [
+        Expanded(child: label),
+        trailing!,
+      ],
     );
   }
 }

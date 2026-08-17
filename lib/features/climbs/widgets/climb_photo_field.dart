@@ -46,8 +46,7 @@ class ClimbPhotoField extends ConsumerWidget {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: filenames.length,
-              separatorBuilder: (_, _) =>
-                  const SizedBox(width: CairnSpace.x12),
+              separatorBuilder: (_, _) => const SizedBox(width: CairnSpace.x12),
               itemBuilder: (context, index) => _Thumb(
                 filename: filenames[index],
                 size: _thumbSize,

@@ -14,11 +14,7 @@ void main() {
   testWidgets('fills exactly one pill', (tester) async {
     await pumpCairn(
       tester,
-      FilterPillRow(
-        labels: labels,
-        selectedIndex: 1,
-        onSelected: (_) {},
-      ),
+      FilterPillRow(labels: labels, selectedIndex: 1, onSelected: (_) {}),
       width: 360,
     );
 

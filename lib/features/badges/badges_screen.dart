@@ -200,9 +200,7 @@ class _Tile extends StatelessWidget {
       label: badge.name,
       glyph: _glyphFor(badge),
       kind: badge.isMilestone ? BadgeKind.milestone : BadgeKind.peak,
-      state: badge.isUnlocked
-          ? BadgeTileState.unlocked
-          : BadgeTileState.locked,
+      state: badge.isUnlocked ? BadgeTileState.unlocked : BadgeTileState.locked,
       // Earned: the day it fired. Locked: what to do about it. Each state
       // shows the one line that is worth reading in that state.
       caption: unlockedAt == null ? badge.condition : climbDayLabel(unlockedAt),

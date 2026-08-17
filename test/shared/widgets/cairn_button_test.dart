@@ -41,10 +41,7 @@ void main() {
     );
     final shrunk = tester.getSize(find.byType(FilledButton)).width;
 
-    await pumpCairn(
-      tester,
-      const CairnButton(label: 'Save', onPressed: null),
-    );
+    await pumpCairn(tester, const CairnButton(label: 'Save', onPressed: null));
 
     expect(shrunk, lessThan(tester.getSize(find.byType(FilledButton)).width));
   });
@@ -94,8 +91,10 @@ void main() {
       width: 320,
     );
 
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).enabled,
-        isFalse);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).enabled,
+      isFalse,
+    );
   });
 
   testWidgets('busy shows a spinner and swallows the press', (tester) async {

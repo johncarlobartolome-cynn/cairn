@@ -42,7 +42,9 @@ void main() {
     final theme = brightness == Brightness.dark ? 'dark' : 'light';
 
     for (final state in BadgeTileState.values) {
-      final earned = state == BadgeTileState.unlocked ? 'an earned' : 'a locked';
+      final earned = state == BadgeTileState.unlocked
+          ? 'an earned'
+          : 'a locked';
 
       testWidgets('in greyscale, $earned milestone is not $earned peak badge '
           'in $theme', (tester) async {
@@ -268,10 +270,12 @@ Future<_Shot> _shootGrid(
   late final Uint8List png;
   await tester.runAsync(() async {
     final image = await render.toImage(pixelRatio: _pixelRatio);
-    rgba = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer
-        .asUint8List();
-    png = (await image.toByteData(format: ui.ImageByteFormat.png))!.buffer
-        .asUint8List();
+    rgba = (await image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!.buffer.asUint8List();
+    png = (await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))!.buffer.asUint8List();
     image.dispose();
   });
 

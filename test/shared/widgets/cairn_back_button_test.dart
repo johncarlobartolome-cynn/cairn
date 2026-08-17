@@ -21,11 +21,7 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets('draws the arrow in ink in ${brightness.name}', (tester) async {
-      await pumpCairn(
-        tester,
-        const CairnBackButton(),
-        brightness: brightness,
-      );
+      await pumpCairn(tester, const CairnBackButton(), brightness: brightness);
 
       expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
       expect(glyphColour(tester), paletteFor(brightness).ink);

@@ -55,13 +55,10 @@ void main() {
 
     expect(climbed.visible, hasLength(1));
     expect(toClimb.visible, hasLength(all.libraryTotal - 1));
-    expect(
-      <String>{
-        for (final peak in toClimb.visible) peak.name,
-        for (final peak in climbed.visible) peak.name,
-      },
-      all.visible.map((peak) => peak.name).toSet(),
-    );
+    expect(<String>{
+      for (final peak in toClimb.visible) peak.name,
+      for (final peak in climbed.visible) peak.name,
+    }, all.visible.map((peak) => peak.name).toSet());
   });
 
   test('the count follows the library when a peak is added', () async {
@@ -91,7 +88,10 @@ void main() {
 
   test('every peak climbed empties the To climb list on purpose', () async {
     for (final peak in await mountains.getAll()) {
-      await climbs.logClimb(mountainId: peak.id, date: DateTime.utc(2026, 8, 15));
+      await climbs.logClimb(
+        mountainId: peak.id,
+        date: DateTime.utc(2026, 8, 15),
+      );
     }
 
     final toClimb = await board(PeakFilter.toClimb);
@@ -116,7 +116,11 @@ void main() {
 
   test('every filter has a label written for it', () {
     for (final filter in PeakFilter.values) {
-      expect(filter.label, isNotEmpty, reason: '$filter reaches a pill unnamed');
+      expect(
+        filter.label,
+        isNotEmpty,
+        reason: '$filter reaches a pill unnamed',
+      );
       expect(filter.label, isNot(contains('—')));
     }
   });

@@ -31,10 +31,9 @@ Future<void> pumpCairn(
     body = Builder(
       builder: (context) => MediaQuery(
         // Copied, not constructed, so size and text scaling stay real.
-        data: MediaQuery.of(context).copyWith(
-          padding: inset,
-          viewPadding: inset,
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(padding: inset, viewPadding: inset),
         child: inner,
       ),
     );

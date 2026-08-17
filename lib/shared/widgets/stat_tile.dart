@@ -40,10 +40,7 @@ class StatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: emphasised ? colors.accentSoft : colors.surfaceAlt,
         borderRadius: CairnRadius.dataCardAll,
-        border: Border.all(
-          color: colors.hairline,
-          width: CairnSize.hairline,
-        ),
+        border: Border.all(color: colors.hairline, width: CairnSize.hairline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(CairnSpace.x16),

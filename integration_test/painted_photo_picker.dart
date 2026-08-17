@@ -62,8 +62,7 @@ Future<Uint8List> _paintRidge(int index) async {
 
   canvas.drawRect(
     frame,
-    Paint()
-      ..shader = ui.Gradient.linear(Offset.zero, frame.bottomLeft, sky),
+    Paint()..shader = ui.Gradient.linear(Offset.zero, frame.bottomLeft, sky),
   );
 
   canvas.drawCircle(
@@ -98,8 +97,6 @@ Future<Uint8List> _paintRidge(int index) async {
   ]);
 
   final ui.Image image = await recorder.endRecording().toImage(width, height);
-  final ByteData? data = await image.toByteData(
-    format: ui.ImageByteFormat.png,
-  );
+  final ByteData? data = await image.toByteData(format: ui.ImageByteFormat.png);
   return data!.buffer.asUint8List();
 }

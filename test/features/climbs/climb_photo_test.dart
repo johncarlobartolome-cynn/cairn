@@ -69,19 +69,20 @@ void main() {
     return (image.image as FileImage).file.path;
   }
 
-  testWidgets('resolves the stored filename against the directory it is given', (
-    tester,
-  ) async {
-    final Directory documents = createTempDirectory('documents');
-    writePickedFile(documents, filename);
+  testWidgets(
+    'resolves the stored filename against the directory it is given',
+    (tester) async {
+      final Directory documents = createTempDirectory('documents');
+      writePickedFile(documents, filename);
 
-    await pumpPhoto(tester, () => documents);
+      await pumpPhoto(tester, () => documents);
 
-    expect(
-      resolvedPath(tester),
-      '${documents.path}${Platform.pathSeparator}$filename',
-    );
-  });
+      expect(
+        resolvedPath(tester),
+        '${documents.path}${Platform.pathSeparator}$filename',
+      );
+    },
+  );
 
   testWidgets('the same stored value still renders after the directory moves', (
     tester,
@@ -120,31 +121,33 @@ void main() {
     expect(File(pathAfter).existsSync(), isTrue);
   });
 
-  testWidgets('a file that is not there draws a placeholder, not an exception', (
-    tester,
-  ) async {
-    final Directory documents = createTempDirectory('documents');
+  testWidgets(
+    'a file that is not there draws a placeholder, not an exception',
+    (tester) async {
+      final Directory documents = createTempDirectory('documents');
 
-    await pumpPhoto(tester, () => documents);
+      await pumpPhoto(tester, () => documents);
 
-    expect(find.byType(MissingPhoto), findsOneWidget);
-    expect(find.text(MissingPhoto.message), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.byType(MissingPhoto), findsOneWidget);
+      expect(find.text(MissingPhoto.message), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('a file that is there but is not an image degrades the same way', (
-    tester,
-  ) async {
-    // The other half of missing: the file is present and the decode fails.
-    // Same errorBuilder, same placeholder, still no crash.
-    final Directory documents = createTempDirectory('documents');
-    writePickedFile(documents, filename);
+  testWidgets(
+    'a file that is there but is not an image degrades the same way',
+    (tester) async {
+      // The other half of missing: the file is present and the decode fails.
+      // Same errorBuilder, same placeholder, still no crash.
+      final Directory documents = createTempDirectory('documents');
+      writePickedFile(documents, filename);
 
-    await pumpPhoto(tester, () => documents);
+      await pumpPhoto(tester, () => documents);
 
-    expect(find.byType(MissingPhoto), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.byType(MissingPhoto), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('says nothing in words when it is too small for the sentence', (
     tester,

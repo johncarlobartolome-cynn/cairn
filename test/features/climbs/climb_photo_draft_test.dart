@@ -46,8 +46,7 @@ void main() {
     return sub;
   }
 
-  ClimbPhotoDraft draft() =>
-      container.read(climbPhotoDraftProvider.notifier);
+  ClimbPhotoDraft draft() => container.read(climbPhotoDraftProvider.notifier);
 
   List<String> attached() =>
       container.read(climbPhotoDraftProvider).valueOrNull ?? const <String>[];

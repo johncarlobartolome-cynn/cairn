@@ -34,7 +34,10 @@ void main() {
 
     final disc = discOf(tester);
     expect(disc.color, Colors.transparent);
-    expect((disc.shape as OutlinedBorder).side.color, CairnPalette.light.inkMuted);
+    expect(
+      (disc.shape as OutlinedBorder).side.color,
+      CairnPalette.light.inkMuted,
+    );
   });
 
   testWidgets('unlocked takes the brand fill', (tester) async {
@@ -117,9 +120,7 @@ void main() {
       width: 120,
     );
 
-    final theme = IconTheme.of(
-      tester.element(find.byIcon(Icons.flag_rounded)),
-    );
+    final theme = IconTheme.of(tester.element(find.byIcon(Icons.flag_rounded)));
     expect(theme.size, CairnSize.iconBadgeGlyph);
     expect(theme.color, CairnPalette.light.ink);
   });

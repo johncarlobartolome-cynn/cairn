@@ -94,8 +94,7 @@ void main() {
   ]..sort();
 
   /// Lets fire-and-forget cleanup reach the disk before a test looks.
-  Future<void> letCleanupFinish(WidgetTester tester) =>
-      pumpRealAsync(tester);
+  Future<void> letCleanupFinish(WidgetTester tester) => pumpRealAsync(tester);
 
   /// Taps Save and lets the write and the sheet's exit animation finish. The
   /// snack bar is still on screen when this returns.
@@ -203,7 +202,10 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text(climbDayLabel(DateTime(day.year, day.month))), findsOneWidget);
+    expect(
+      find.text(climbDayLabel(DateTime(day.year, day.month))),
+      findsOneWidget,
+    );
 
     await tapSave(tester);
 
@@ -288,8 +290,9 @@ void main() {
     // The thumbnails are drawn from the copies, which is the same resolve path
     // climb detail uses. What you see here is what the app will find later.
     expect(filesOnDisk(), hasLength(2));
-    for (final ClimbPhoto photo
-        in tester.widgetList<ClimbPhoto>(find.byType(ClimbPhoto))) {
+    for (final ClimbPhoto photo in tester.widgetList<ClimbPhoto>(
+      find.byType(ClimbPhoto),
+    )) {
       expect(isBarePhotoFilename(photo.filename), isTrue);
       expect(filesOnDisk(), contains(photo.filename));
     }

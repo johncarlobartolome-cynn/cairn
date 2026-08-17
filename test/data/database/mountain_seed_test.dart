@@ -160,11 +160,14 @@ void main() {
     }
   });
 
-  test('a seeded peak has no notes, because notes belong to the user', () async {
-    for (final peak in await dao.getAll()) {
-      expect(peak.notes, isNull);
-    }
-  });
+  test(
+    'a seeded peak has no notes, because notes belong to the user',
+    () async {
+      for (final peak in await dao.getAll()) {
+        expect(peak.notes, isNull);
+      }
+    },
+  );
 
   test('seeding again leaves six rows, not twelve', () async {
     await seedMountains(dao);

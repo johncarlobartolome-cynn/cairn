@@ -183,10 +183,12 @@ abstract final class CairnRadius {
   /// Large enough to read as fully round at every height used in the app.
   static const double pill = 999;
 
-  static const BorderRadius photoCardAll =
-      BorderRadius.all(Radius.circular(photoCard));
-  static const BorderRadius dataCardAll =
-      BorderRadius.all(Radius.circular(dataCard));
+  static const BorderRadius photoCardAll = BorderRadius.all(
+    Radius.circular(photoCard),
+  );
+  static const BorderRadius dataCardAll = BorderRadius.all(
+    Radius.circular(dataCard),
+  );
   static const BorderRadius fieldAll = BorderRadius.all(Radius.circular(field));
   static const BorderRadius pillAll = BorderRadius.all(Radius.circular(pill));
 
@@ -313,12 +315,12 @@ abstract final class CairnShadow {
 
   /// Tinted with the theme's accent, per the spec.
   static List<BoxShadow> card(Color accent) => [
-        BoxShadow(
-          color: accent.withValues(alpha: opacity),
-          blurRadius: blur,
-          offset: const Offset(0, dy),
-        ),
-      ];
+    BoxShadow(
+      color: accent.withValues(alpha: opacity),
+      blurRadius: blur,
+      offset: const Offset(0, dy),
+    ),
+  ];
 }
 
 /// The climbed / unclimbed treatment. Cairn's whole point, so its numbers are

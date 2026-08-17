@@ -72,10 +72,9 @@ class MountainDao extends DatabaseAccessor<AppDatabase> {
   Future<void> fillMissingFacts(List<MountainsCompanion> peaks) async {
     await transaction(() async {
       for (final peak in peaks) {
-        final row =
-            await (select(
-              _mountains,
-            )..where((m) => m.name.equals(peak.name.value))).getSingleOrNull();
+        final row = await (select(
+          _mountains,
+        )..where((m) => m.name.equals(peak.name.value))).getSingleOrNull();
 
         if (row == null) continue;
 

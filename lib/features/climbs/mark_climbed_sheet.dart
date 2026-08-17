@@ -54,10 +54,8 @@ class MarkClimbedSheet extends ConsumerStatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => MarkClimbedSheet(
-        mountainId: mountainId,
-        mountainName: mountainName,
-      ),
+      builder: (_) =>
+          MarkClimbedSheet(mountainId: mountainId, mountainName: mountainName),
     );
   }
 
@@ -205,10 +203,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
 
               if (_failure != null) ...[
                 const SizedBox(height: CairnSpace.x16),
-                Text(
-                  _failure!,
-                  style: text.body.copyWith(color: colors.error),
-                ),
+                Text(_failure!, style: text.body.copyWith(color: colors.error)),
               ],
 
               const SizedBox(height: CairnSpace.x24),

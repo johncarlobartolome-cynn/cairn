@@ -63,8 +63,10 @@ void main() {
         expect(style?.fontFamily, CairnType.family);
       }
       expect(CairnTheme.light.textTheme.bodyMedium?.fontSize, 15);
-      expect(CairnTheme.light.textTheme.bodySmall?.color,
-          CairnPalette.light.inkMuted);
+      expect(
+        CairnTheme.light.textTheme.bodySmall?.color,
+        CairnPalette.light.inkMuted,
+      );
       expect(CairnTheme.light.textTheme.labelMedium?.letterSpacing, 1.2);
     });
 
@@ -112,12 +114,15 @@ void main() {
 
     test('a saturation of 1 is a no-op matrix', () {
       final filter = CairnPeak.saturation(1);
-      expect(filter, const ColorFilter.matrix(<double>[
-        1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 0, //
-        0, 0, 1, 0, 0, //
-        0, 0, 0, 1, 0, //
-      ]));
+      expect(
+        filter,
+        const ColorFilter.matrix(<double>[
+          1, 0, 0, 0, 0, //
+          0, 1, 0, 0, 0, //
+          0, 0, 1, 0, 0, //
+          0, 0, 0, 1, 0, //
+        ]),
+      );
     });
 
     test('shadow is soft, wide and accent-tinted', () {

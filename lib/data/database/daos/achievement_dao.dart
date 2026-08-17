@@ -69,9 +69,7 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
       peaksClimbed: peaksClimbed,
       peaksInLibrary: peaksInLibrary,
     )) {
-      await unlock(
-        AchievementsCompanion.insert(type: type, unlockedAt: at),
-      );
+      await unlock(AchievementsCompanion.insert(type: type, unlockedAt: at));
     }
   }
 

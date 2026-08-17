@@ -94,30 +94,36 @@ void main() {
     });
   });
 
-  test('a source name carrying a path cannot smuggle one into the store', () async {
-    // Nothing of the source name survives except a checked extension, so this
-    // is belt and braces. It is also the exact shape of the mistake the whole
-    // ticket is about.
-    final Directory nested = Directory(
-      '${picked.path}${Platform.pathSeparator}deeper',
-    )..createSync();
-    final File source = writePickedFile(nested, 'IMG_0431.jpg');
+  test(
+    'a source name carrying a path cannot smuggle one into the store',
+    () async {
+      // Nothing of the source name survives except a checked extension, so this
+      // is belt and braces. It is also the exact shape of the mistake the whole
+      // ticket is about.
+      final Directory nested = Directory(
+        '${picked.path}${Platform.pathSeparator}deeper',
+      )..createSync();
+      final File source = writePickedFile(nested, 'IMG_0431.jpg');
 
-    final String filename = await store.copyIn(source.path);
+      final String filename = await store.copyIn(source.path);
 
-    expect(isBarePhotoFilename(filename), isTrue);
-    expect(filename, isNot(contains(picked.path)));
-  });
+      expect(isBarePhotoFilename(filename), isTrue);
+      expect(filename, isNot(contains(picked.path)));
+    },
+  );
 
-  test('a picked file that is already gone throws rather than storing a name', () async {
-    final File source = writePickedFile(picked, 'IMG_0431.jpg')..deleteSync();
+  test(
+    'a picked file that is already gone throws rather than storing a name',
+    () async {
+      final File source = writePickedFile(picked, 'IMG_0431.jpg')..deleteSync();
 
-    await expectLater(
-      store.copyIn(source.path),
-      throwsA(isA<FileSystemException>()),
-    );
-    expect(documents.listSync(), isEmpty);
-  });
+      await expectLater(
+        store.copyIn(source.path),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(documents.listSync(), isEmpty);
+    },
+  );
 
   test('creates the documents directory if it is not there yet', () async {
     documents.deleteSync(recursive: true);
@@ -162,7 +168,11 @@ void main() {
         writePickedFile(picked, 'b.jpg').path,
       );
 
-      await store.removeAll(<String>[kept, 'climb_never_existed.jpg', alsoKept]);
+      await store.removeAll(<String>[
+        kept,
+        'climb_never_existed.jpg',
+        alsoKept,
+      ]);
 
       expect(documents.listSync(), isEmpty);
     });

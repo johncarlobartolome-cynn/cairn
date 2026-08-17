@@ -127,7 +127,10 @@ void main() {
       final name = tester.getRect(find.text('Mt. Tenglawan'));
       final region = tester.getRect(find.text('Benguet'));
       expect(region.top, greaterThan(name.top));
-      expect(region.bottom, lessThan(tester.getRect(find.byType(StatTile).first).top));
+      expect(
+        region.bottom,
+        lessThan(tester.getRect(find.byType(StatTile).first).top),
+      );
 
       await disposeApp(tester);
     });
@@ -253,7 +256,8 @@ void main() {
         'DIFFICULTY',
       ]) {
         expect(
-          tester.renderObject<RenderParagraph>(find.text(value))
+          tester
+              .renderObject<RenderParagraph>(find.text(value))
               .didExceedMaxLines,
           isFalse,
           reason: '$value was cut',
@@ -544,19 +548,20 @@ void main() {
       await disposeApp(tester);
     });
 
-    testWidgets('is absent entirely, label included, on a peak with no climbs', (
-      tester,
-    ) async {
-      final id = await addPeak();
+    testWidgets(
+      'is absent entirely, label included, on a peak with no climbs',
+      (tester) async {
+        final id = await addPeak();
 
-      await pumpApp(tester, db, location: CairnRoute.mountain(id));
+        await pumpApp(tester, db, location: CairnRoute.mountain(id));
 
-      expect(find.text('CLIMBS'), findsNothing);
-      // This peak has no jump-off either, so nothing labelled is left at all.
-      expect(find.byType(SectionLabel), findsNothing);
+        expect(find.text('CLIMBS'), findsNothing);
+        // This peak has no jump-off either, so nothing labelled is left at all.
+        expect(find.byType(SectionLabel), findsNothing);
 
-      await disposeApp(tester);
-    });
+        await disposeApp(tester);
+      },
+    );
 
     testWidgets('another peak\'s climbs stay on that peak', (tester) async {
       final id = await addPeak();
@@ -584,7 +589,9 @@ void main() {
 
       expect(find.byType(ClimbDetailScreen), findsOneWidget);
       expect(
-        tester.widget<ClimbDetailScreen>(find.byType(ClimbDetailScreen)).climbId,
+        tester
+            .widget<ClimbDetailScreen>(find.byType(ClimbDetailScreen))
+            .climbId,
         newest.id,
       );
       // The real climb, not the not-found branch T5 shipped for an empty log.
@@ -594,7 +601,8 @@ void main() {
     });
 
     testWidgets('names companions in full and never cuts them', (tester) async {
-      const companions = 'Mara, Enzo, Tito Ben and two guides from the barangay';
+      const companions =
+          'Mara, Enzo, Tito Ben and two guides from the barangay';
       final id = await addPeak();
       await climbs.logClimb(
         mountainId: id,

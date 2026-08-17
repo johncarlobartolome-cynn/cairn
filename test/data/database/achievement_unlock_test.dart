@@ -50,31 +50,34 @@ void main() {
     }
   }
 
-  test('the first climb unlocks its peak badge and the first-climb milestone', () async {
-    final peaks = await library();
+  test(
+    'the first climb unlocks its peak badge and the first-climb milestone',
+    () async {
+      final peaks = await library();
 
-    await climbs.logClimb(
-      mountainId: peaks.first.id,
-      date: DateTime.utc(2026, 8, 11),
-    );
+      await climbs.logClimb(
+        mountainId: peaks.first.id,
+        date: DateTime.utc(2026, 8, 11),
+      );
 
-    final rows = await achievements.getAll();
-    expect(rows, hasLength(2));
+      final rows = await achievements.getAll();
+      expect(rows, hasLength(2));
 
-    final peakBadge = rows.singleWhere(
-      (a) => a.type == AchievementType.perMountain,
-    );
-    expect(peakBadge.mountainId, peaks.first.id);
+      final peakBadge = rows.singleWhere(
+        (a) => a.type == AchievementType.perMountain,
+      );
+      expect(peakBadge.mountainId, peaks.first.id);
 
-    final milestone = rows.singleWhere(
-      (a) => a.type == AchievementType.firstClimb,
-    );
-    expect(
-      milestone.mountainId,
-      isNull,
-      reason: 'a milestone belongs to nobody in particular',
-    );
-  });
+      final milestone = rows.singleWhere(
+        (a) => a.type == AchievementType.firstClimb,
+      );
+      expect(
+        milestone.mountainId,
+        isNull,
+        reason: 'a milestone belongs to nobody in particular',
+      );
+    },
+  );
 
   test('a second climb of the same peak unlocks nothing new', () async {
     final peak = (await library()).first;
@@ -94,18 +97,21 @@ void main() {
     );
   });
 
-  test('three climbs of one peak is one peak, so no halfway milestone', () async {
-    final peak = (await library()).first;
+  test(
+    'three climbs of one peak is one peak, so no halfway milestone',
+    () async {
+      final peak = (await library()).first;
 
-    await climbEach([peak, peak, peak]);
+      await climbEach([peak, peak, peak]);
 
-    expect(await climbs.getAll(), hasLength(3));
-    expect(await climbs.countClimbedMountains(), 1);
-    expect(await unlockedTypes(), <AchievementType>{
-      AchievementType.perMountain,
-      AchievementType.firstClimb,
-    });
-  });
+      expect(await climbs.getAll(), hasLength(3));
+      expect(await climbs.countClimbedMountains(), 1);
+      expect(await unlockedTypes(), <AchievementType>{
+        AchievementType.perMountain,
+        AchievementType.firstClimb,
+      });
+    },
+  );
 
   test('the halfway milestone waits for the third different peak', () async {
     final peaks = await library();
@@ -124,21 +130,24 @@ void main() {
     expect(await achievements.getAll(), hasLength(3 + 2));
   });
 
-  test('climbing every peak in the library unlocks the last milestone', () async {
-    final peaks = await library();
+  test(
+    'climbing every peak in the library unlocks the last milestone',
+    () async {
+      final peaks = await library();
 
-    await climbEach(peaks);
+      await climbEach(peaks);
 
-    expect(await unlockedTypes(), <AchievementType>{
-      AchievementType.perMountain,
-      AchievementType.firstClimb,
-      AchievementType.threePeaks,
-      AchievementType.allPeaks,
-    });
-    for (final peak in peaks) {
-      expect(await badgesFor(peak.id), hasLength(1), reason: peak.name);
-    }
-  });
+      expect(await unlockedTypes(), <AchievementType>{
+        AchievementType.perMountain,
+        AchievementType.firstClimb,
+        AchievementType.threePeaks,
+        AchievementType.allPeaks,
+      });
+      for (final peak in peaks) {
+        expect(await badgesFor(peak.id), hasLength(1), reason: peak.name);
+      }
+    },
+  );
 
   test('all peaks means the library, not six', () async {
     // The app lets a user add a peak of their own, so the finish line moves.
@@ -174,25 +183,28 @@ void main() {
     );
   });
 
-  test('the badge stamp is the moment it fired, not the day of the climb', () async {
-    final peak = (await library()).first;
-    final firedAt = DateTime.utc(2026, 8, 17, 9, 30);
+  test(
+    'the badge stamp is the moment it fired, not the day of the climb',
+    () async {
+      final peak = (await library()).first;
+      final firedAt = DateTime.utc(2026, 8, 17, 9, 30);
 
-    await climbs.logClimb(
-      mountainId: peak.id,
-      // A hike from years ago, logged this morning.
-      date: DateTime.utc(2019, 3, 2),
-      unlockedAt: firedAt,
-    );
+      await climbs.logClimb(
+        mountainId: peak.id,
+        // A hike from years ago, logged this morning.
+        date: DateTime.utc(2019, 3, 2),
+        unlockedAt: firedAt,
+      );
 
-    for (final badge in await achievements.getAll()) {
-      // Compared as an instant. The column is a real timestamp, stored as epoch
-      // seconds and read back in the device's own zone, which is the whole
-      // difference between this column and `climbs.date`.
-      expect(badge.unlockedAt.toUtc(), firedAt);
-      expect(badge.unlockedAt.toUtc(), isNot(DateTime.utc(2019, 3, 2)));
-    }
-  });
+      for (final badge in await achievements.getAll()) {
+        // Compared as an instant. The column is a real timestamp, stored as epoch
+        // seconds and read back in the device's own zone, which is the whole
+        // difference between this column and `climbs.date`.
+        expect(badge.unlockedAt.toUtc(), firedAt);
+        expect(badge.unlockedAt.toUtc(), isNot(DateTime.utc(2019, 3, 2)));
+      }
+    },
+  );
 
   test('the halfway milestone is stored under its own name', () async {
     // The column is text, and T18 renamed the value. This reads the raw cell

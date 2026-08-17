@@ -50,9 +50,9 @@ void main() {
 
     Color background() =>
         tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode ==
-                ThemeMode.dark
-            ? CairnPalette.dark.ground
-            : CairnPalette.light.ground;
+            ThemeMode.dark
+        ? CairnPalette.dark.ground
+        : CairnPalette.light.ground;
 
     expect(background(), CairnPalette.light.ground);
 
@@ -100,11 +100,16 @@ void main() {
     // The gold swatch caption is the very last thing in the catalogue, so it is
     // the one that proves nothing is trapped behind the floating bar.
     final lastContent = tester.getRect(find.text('gold'));
-    final navTop = tester.getRect(
-      find
-          .descendant(of: find.byType(PillNav), matching: find.byType(Material))
-          .first,
-    ).top;
+    final navTop = tester
+        .getRect(
+          find
+              .descendant(
+                of: find.byType(PillNav),
+                matching: find.byType(Material),
+              )
+              .first,
+        )
+        .top;
     expect(lastContent.bottom, lessThanOrEqualTo(navTop));
   });
 }

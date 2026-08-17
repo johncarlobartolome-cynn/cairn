@@ -119,7 +119,10 @@ void main() {
     const name = 'climb_1755300000000001_a1b2c3d4.jpg';
     writePickedFile(documents, name);
 
-    await openClimb(tester, await logClimb(photoFilenames: const <String>[name]));
+    await openClimb(
+      tester,
+      await logClimb(photoFilenames: const <String>[name]),
+    );
 
     expect(
       tester.getTopLeft(find.byType(ClimbPhotoStrip)).dy,
@@ -193,7 +196,9 @@ void main() {
     );
 
     await openClimb(tester, one);
-    final double singleDay = tester.getTopLeft(find.text(climbDayLabel(day))).dy;
+    final double singleDay = tester
+        .getTopLeft(find.text(climbDayLabel(day)))
+        .dy;
     await disposeApp(tester);
 
     final int many = await climbs.logClimb(

@@ -48,7 +48,10 @@ final peaksBoardProvider = Provider<AsyncValue<PeaksBoard>>((ref) {
   final AsyncValue<List<Mountain>> library = ref.watch(mountainsProvider);
   final AsyncValue<Set<int>> climbed = ref.watch(climbedMountainIdsProvider);
 
-  for (final AsyncValue<Object> read in <AsyncValue<Object>>[library, climbed]) {
+  for (final AsyncValue<Object> read in <AsyncValue<Object>>[
+    library,
+    climbed,
+  ]) {
     final Object? failure = read.error;
     if (failure != null) {
       return AsyncValue<PeaksBoard>.error(

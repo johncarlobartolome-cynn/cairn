@@ -186,7 +186,11 @@ class _NothingHere extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (IconData icon, String title, String message) = switch (board.filter) {
+    final (
+      IconData icon,
+      String title,
+      String message,
+    ) = switch (board.filter) {
       // Every peak is climbed, which is the whole point of the app, so it reads
       // as the finish line rather than as a list with nothing in it. The trophy
       // is the same glyph the "All peaks" badge wears.

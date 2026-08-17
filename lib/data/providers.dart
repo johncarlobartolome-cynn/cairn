@@ -129,9 +129,8 @@ final documentsDirectoryProvider = FutureProvider<Directory>(
 /// filename to store. See `photos/photo_filename.dart` for why that is the only
 /// thing allowed into the column.
 final photoStoreProvider = Provider<PhotoStore>(
-  (ref) => PhotoStore(
-    directory: () => ref.read(documentsDirectoryProvider.future),
-  ),
+  (ref) =>
+      PhotoStore(directory: () => ref.read(documentsDirectoryProvider.future)),
 );
 
 /// Brings photos taken before the cap existed inside it, once per install.

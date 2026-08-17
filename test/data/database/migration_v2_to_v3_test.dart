@@ -174,7 +174,10 @@ void main() {
       () => db
           .into(db.climbs)
           .insert(
-            ClimbsCompanion.insert(mountainId: 9999, date: DateTime(2026, 8, 11)),
+            ClimbsCompanion.insert(
+              mountainId: 9999,
+              date: DateTime(2026, 8, 11),
+            ),
           ),
       throwsA(isA<Exception>()),
     );

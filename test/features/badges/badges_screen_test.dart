@@ -136,27 +136,28 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('a milestone takes a different shape, not just a different fill', (
-    tester,
-  ) async {
-    await pumpAfterOneClimb(tester);
+  testWidgets(
+    'a milestone takes a different shape, not just a different fill',
+    (tester) async {
+      await pumpAfterOneClimb(tester);
 
-    // Colour still separates them, and after T22 it is no longer doing it
-    // alone: the milestone's disc is a seal and the peak's is a circle, which
-    // is the half of the distinction that survives being read in greyscale.
-    // `test/a11y/badge_greyscale_test.dart` is where that gets measured.
-    expect(kindOf(tester, 'First climb'), BadgeKind.milestone);
-    expect(stateOf(tester, 'First climb'), BadgeTileState.unlocked);
-    expect(discOf(tester, 'First climb').color, CairnPalette.light.gold);
-    expect(discOf(tester, 'First climb').shape, isA<BadgeSealBorder>());
+      // Colour still separates them, and after T22 it is no longer doing it
+      // alone: the milestone's disc is a seal and the peak's is a circle, which
+      // is the half of the distinction that survives being read in greyscale.
+      // `test/a11y/badge_greyscale_test.dart` is where that gets measured.
+      expect(kindOf(tester, 'First climb'), BadgeKind.milestone);
+      expect(stateOf(tester, 'First climb'), BadgeTileState.unlocked);
+      expect(discOf(tester, 'First climb').color, CairnPalette.light.gold);
+      expect(discOf(tester, 'First climb').shape, isA<BadgeSealBorder>());
 
-    expect(kindOf(tester, climbedName), BadgeKind.peak);
-    expect(stateOf(tester, climbedName), BadgeTileState.unlocked);
-    expect(discOf(tester, climbedName).color, CairnPalette.light.brand);
-    expect(discOf(tester, climbedName).shape, isA<CircleBorder>());
+      expect(kindOf(tester, climbedName), BadgeKind.peak);
+      expect(stateOf(tester, climbedName), BadgeTileState.unlocked);
+      expect(discOf(tester, climbedName).color, CairnPalette.light.brand);
+      expect(discOf(tester, climbedName).shape, isA<CircleBorder>());
 
-    await disposeApp(tester);
-  });
+      await disposeApp(tester);
+    },
+  );
 
   testWidgets('a locked milestone keeps the seal a locked peak badge lacks', (
     tester,
