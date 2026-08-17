@@ -54,6 +54,17 @@ coverage/
 # Claude Code (settings.json is shared; local overrides are not)
 .claude/settings.local.json
 
+# Secrets and local state. These patterns exist in android/.gitignore, but only
+# for that folder, so anything dropped at the root was stageable. Nothing has
+# leaked. This closes the path before the repository goes public.
+.env
+.env.*
+*.jks
+*.keystore
+key.properties
+*.db
+*.sqlite
+
 # Web related
 lib/generated_plugin_registrant.dart
 
