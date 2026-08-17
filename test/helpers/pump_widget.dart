@@ -10,7 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// [width] constrains the widget, which is how the narrow-width layout tests
 /// squeeze a tile. [safeAreaInset] fakes a gesture bar, for the nav's
-/// safe-area behaviour.
+/// safe-area behaviour. [disableAnimations] is the phone's reduced-motion
+/// setting, which a widget reads off [MediaQuery] rather than off the platform.
 Future<void> pumpCairn(
   WidgetTester tester,
   Widget child, {
@@ -18,6 +19,7 @@ Future<void> pumpCairn(
   double? width,
   EdgeInsets? safeAreaInset,
   Alignment alignment = Alignment.center,
+  bool disableAnimations = false,
 }) async {
   Widget body = child;
   if (width != null) {
@@ -26,14 +28,18 @@ Future<void> pumpCairn(
   body = Align(alignment: alignment, child: body);
 
   final inset = safeAreaInset;
-  if (inset != null) {
+  if (inset != null || disableAnimations) {
     final inner = body;
     body = Builder(
       builder: (context) => MediaQuery(
-        // Copied, not constructed, so size and text scaling stay real.
-        data: MediaQuery.of(
-          context,
-        ).copyWith(padding: inset, viewPadding: inset),
+        // Copied, not constructed, so size and text scaling stay real. A null
+        // here keeps whatever the harness already had, so one flag does not
+        // quietly reset the other.
+        data: MediaQuery.of(context).copyWith(
+          padding: inset,
+          viewPadding: inset,
+          disableAnimations: disableAnimations ? true : null,
+        ),
         child: inner,
       ),
     );

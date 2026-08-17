@@ -334,6 +334,41 @@ abstract final class CairnPeak {
   /// subject readable.
   static const double washOpacity = 0.35;
 
+  /// How long a card takes to gain its colour when its peak is marked climbed.
+  ///
+  /// **The number is the sum of a wait and a change, and both halves were
+  /// earned on the device.** The change itself is 455ms, which is a photograph
+  /// coming up rather than a state flipping. The 195ms in front of it is what
+  /// makes the change visible at all.
+  ///
+  /// The card turns colour the instant the row lands, and the row lands while
+  /// the mark-climbed sheet is still open over peak detail. So the one visual
+  /// event this app is built around happens two screens away from the list it
+  /// happens on. Flutter's own overlay is what saves it: a route under an opaque
+  /// route runs with its tickers muted, so the animation is scheduled and does
+  /// not advance, and the first tick it ever gets is the one after the pop
+  /// starts. The change is therefore always played to somebody watching, however
+  /// long they linger on peak detail first.
+  ///
+  /// That leaves the pop's own 450ms to clear. Without the wait the whole reveal
+  /// would run underneath a page sliding and fading in, and finish exactly as
+  /// the page settled: technically animated, and missed. With it the colour
+  /// starts moving as the list arrives and lands 200ms after it is still.
+  static const Duration reveal = Duration(milliseconds: 650);
+
+  /// The wait, then the change. See [reveal] for where the 0.3 comes from.
+  static const Curve revealCurve = Interval(0.3, 1, curve: Curves.easeOutCubic);
+
+  /// Where in the reveal the climbed mark starts arriving.
+  ///
+  /// After the colour rather than with it. The photograph is the event and the
+  /// mark is what settles onto it, so they should not both begin at once.
+  static const double markArrival = 0.4;
+
+  /// The scale the mark arrives from. Barely under one: enough that it settles
+  /// rather than appears, not enough to read as a pop.
+  static const double markArrivalScale = 0.9;
+
   /// Luma weights used to build the desaturation matrix (Rec. 709).
   static const double _lumaR = 0.2126;
   static const double _lumaG = 0.7152;

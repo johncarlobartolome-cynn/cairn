@@ -131,5 +131,50 @@ void main() {
       expect(shadow.offset, const Offset(0, 8));
       expect(shadow.color.a, closeTo(0.08, 0.005));
     });
+
+    test('the reveal is a wait and then a change', () {
+      // Both halves are load-bearing. The wait is what lets the pop transition
+      // get out of the way before the colour starts moving; without it the whole
+      // change happens under a page that is still sliding in.
+      expect(CairnPeak.reveal, const Duration(milliseconds: 650));
+      expect(CairnPeak.revealCurve.transform(0), 0);
+      expect(
+        CairnPeak.revealCurve.transform(0.25),
+        0,
+        reason: 'the first quarter of the reveal is the wait',
+      );
+      expect(CairnPeak.revealCurve.transform(1), 1);
+      expect(CairnPeak.markArrival, inExclusiveRange(0, 1));
+    });
+  });
+
+  group('route motion', () {
+    FadeForwardsPageTransitionsBuilder androidBuilder(ThemeData theme) =>
+        theme.pageTransitionsTheme.builders[TargetPlatform.android]!
+            as FadeForwardsPageTransitionsBuilder;
+
+    test('a route slides and fades rather than zooming', () {
+      // The pane behind a transition is cream, not the white that
+      // ColorScheme.surface would have handed it.
+      expect(
+        androidBuilder(CairnTheme.light).backgroundColor,
+        CairnPalette.light.ground,
+      );
+      expect(
+        androidBuilder(CairnTheme.dark).backgroundColor,
+        CairnPalette.dark.ground,
+      );
+    });
+
+    test('a theme built twice is the same theme', () {
+      // Not housekeeping. `CairnApp` builds a fresh ThemeData on every build and
+      // `MaterialApp` animates into a theme it does not recognise, so a theme
+      // that is never equal to itself means a 200ms lerp on every rebuild of the
+      // app's root. Both theme extensions and the transitions theme carry the
+      // equality that stops it.
+      expect(CairnTheme.light, CairnTheme.light);
+      expect(CairnTheme.dark, CairnTheme.dark);
+      expect(CairnTheme.light, isNot(CairnTheme.dark));
+    });
   });
 }

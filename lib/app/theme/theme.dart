@@ -18,6 +18,43 @@ abstract final class CairnTheme {
   static ThemeData get light => _build(CairnPalette.light);
   static ThemeData get dark => _build(CairnPalette.dark);
 
+  /// How a route arrives and leaves. **Not the default, and the default was the
+  /// wrong shape for this app.**
+  ///
+  /// Material 3 on Android opens a route by zooming and fading it in from 80%,
+  /// which is a lot of movement for a list that becomes a photograph and comes
+  /// back. This one slides in horizontally and fades, so a peak reads as
+  /// stepping sideways out of the grid and back into it.
+  ///
+  /// The background colour matters as much as the movement: the builder defaults
+  /// to `ColorScheme.surface`, which is white here, so a white pane would show
+  /// between two cream pages for the length of every transition.
+  ///
+  /// Android only. iOS has its own back-swipe grammar and this app does not ship
+  /// there, so overriding it would be a guess with nothing behind it.
+  ///
+  /// **Held as one instance per theme rather than built per call, and that is
+  /// not a micro-optimisation.** `PageTransitionsTheme` compares its builders by
+  /// identity, so a fresh builder makes every `ThemeData` unequal to the last
+  /// one, and `MaterialApp` answers an unequal theme by animating into it. The
+  /// app would have run a 200ms theme lerp on every rebuild. Caught by the test
+  /// that holds `CairnTheme.light == CairnTheme.light`.
+  static final PageTransitionsTheme _lightTransitions = _transitions(
+    CairnPalette.light,
+  );
+  static final PageTransitionsTheme _darkTransitions = _transitions(
+    CairnPalette.dark,
+  );
+
+  static PageTransitionsTheme _transitions(CairnPalette p) =>
+      PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(
+            backgroundColor: p.ground,
+          ),
+        },
+      );
+
   static ThemeData _build(CairnPalette p) {
     final scheme = _scheme(p);
     final text = _textTheme(p);
@@ -37,6 +74,7 @@ abstract final class CairnTheme {
         CairnColors(p),
         CairnTextStyles.fromPalette(p),
       ],
+      pageTransitionsTheme: p.isDark ? _darkTransitions : _lightTransitions,
       appBarTheme: AppBarTheme(
         backgroundColor: p.ground,
         foregroundColor: p.ink,
@@ -234,6 +272,24 @@ class CairnColors extends ThemeExtension<CairnColors> {
     if (other is! CairnColors) return this;
     return t < 0.5 ? this : other;
   }
+
+  /// Value equality, and it is load-bearing. `CairnTheme.light` builds a fresh
+  /// [ThemeData] on every call, `MaterialApp` answers a theme it does not
+  /// recognise by animating into it, and a `ThemeData` carrying an extension
+  /// with no `==` is never equal to the last one. Without this the app ran a
+  /// 200ms theme lerp on every rebuild of its root.
+  ///
+  /// The palette itself compares by identity, which is exactly right: there are
+  /// two of them, both `const`, so Dart hands out the same instance every time.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CairnColors &&
+          other.runtimeType == runtimeType &&
+          other.palette == palette);
+
+  @override
+  int get hashCode => Object.hash(runtimeType, palette);
 }
 
 /// The named type roles, colours already bound.
@@ -294,6 +350,36 @@ class CairnTextStyles extends ThemeExtension<CairnTextStyles> {
     statValue: statValue ?? this.statValue,
     statCaption: statCaption ?? this.statCaption,
     button: button ?? this.button,
+  );
+
+  /// Value equality, for the reason [CairnColors] gives.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is CairnTextStyles &&
+          other.runtimeType == runtimeType &&
+          other.displayLine1 == displayLine1 &&
+          other.displayLine2 == displayLine2 &&
+          other.screenTitle == screenTitle &&
+          other.sectionLabel == sectionLabel &&
+          other.body == body &&
+          other.meta == meta &&
+          other.statValue == statValue &&
+          other.statCaption == statCaption &&
+          other.button == button);
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    displayLine1,
+    displayLine2,
+    screenTitle,
+    sectionLabel,
+    body,
+    meta,
+    statValue,
+    statCaption,
+    button,
   );
 
   @override
