@@ -152,11 +152,39 @@ void main() {
     await disposeApp(tester);
   });
 
-  testWidgets('says so once the climb is in', (tester) async {
+  testWidgets('says which badges the climb just earned', (tester) async {
+    // The payoff. A first climb of a peak unlocks two badges and until T26 the
+    // app mentioned neither, on the one screen the climber was already looking
+    // at. Both are named here, by the names the badges grid uses.
     await openSheet(tester, await pulagId());
     await tapSave(tester);
 
-    expect(find.text('Climb saved'), findsOneWidget);
+    expect(
+      find.text(
+        'Climb saved. You earned two badges: Mt. Pulag and First climb.',
+      ),
+      findsOneWidget,
+    );
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('says only that it saved when nothing was earned', (
+    tester,
+  ) async {
+    // The second trip up the same peak. Both badges are already in the file, so
+    // there is nothing to name and the acknowledgement goes back to two words.
+    final id = await pulagId();
+
+    await openSheet(tester, id);
+    await tapSave(tester);
+    await tester.pump(const Duration(seconds: 10));
+
+    await tester.tap(find.text('Mark climbed'));
+    await tester.pumpAndSettle();
+    await tapSave(tester);
+
+    expect(find.text(climbSaved), findsOneWidget);
 
     await disposeApp(tester);
   });

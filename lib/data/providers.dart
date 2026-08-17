@@ -38,6 +38,15 @@ export 'database/database.dart' show Achievement, Climb, Mountain;
 /// widget's reach, so the door is here.
 export 'database/tables/achievements.dart' show AchievementType;
 
+/// What a save produced, so the sheet that asked for it can say what happened.
+///
+/// The mark-climbed sheet has to name the badges a climb just earned, and only
+/// the write knows which of them are new. These two carry that answer up. The
+/// `show` is doing real work: the DAOs those files declare stay behind the door,
+/// so the layer rule is untouched and a widget still cannot reach a query.
+export 'database/daos/achievement_dao.dart' show EarnedBadges;
+export 'database/daos/climb_dao.dart' show ClimbLogged;
+
 /// The one database instance for the app.
 ///
 /// `driftDatabase` opens `cairn.sqlite` in the app documents directory. Tests

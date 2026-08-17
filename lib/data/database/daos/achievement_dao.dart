@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show immutable;
 
 import '../database.dart';
 import '../tables/achievements.dart';
@@ -8,6 +9,36 @@ import '../tables/achievements.dart';
 /// Three, on a six-peak library. Set here rather than at the call site, because
 /// this is the file that says what a milestone means.
 const int kHalfwayPeaks = 3;
+
+/// The badges one save unlocked, and only the ones it unlocked.
+///
+/// A save asks for the whole earned set every time rather than working out what
+/// changed, so most of what it asks for is already in the file. This is the
+/// difference: what fired just now. It exists because the app has to be able to
+/// name the badge somebody just earned, and a list of every badge they hold
+/// cannot do that.
+@immutable
+class EarnedBadges {
+  const EarnedBadges({required this.peak, required this.milestones});
+
+  /// The answer for a save that earned nothing, which is most saves.
+  static const EarnedBadges none = EarnedBadges(
+    peak: false,
+    milestones: <AchievementType>[],
+  );
+
+  /// True when this climb was the peak's first, so the peak's own badge fired.
+  final bool peak;
+
+  /// The milestones that fired, in the order they are reached.
+  final List<AchievementType> milestones;
+
+  bool get isEmpty => !peak && milestones.isEmpty;
+
+  /// How many badges fired. At most three: a peak's own badge and the two
+  /// milestones a single climb can cross at once.
+  int get count => (peak ? 1 : 0) + milestones.length;
+}
 
 /// Every query against `achievements`. Nothing above this layer writes SQL.
 class AchievementDao extends DatabaseAccessor<AppDatabase> {
@@ -29,12 +60,22 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
     _achievements,
   )..orderBy([(a) => OrderingTerm.desc(a.unlockedAt)])).get();
 
-  /// Unlocks a badge, or does nothing if it is already unlocked.
+  /// Unlocks a badge, or does nothing if it is already unlocked. True when it
+  /// was this call that unlocked it.
   ///
   /// Safe to call on every climb. The two partial unique indexes on the table
   /// turn a repeat into an ignored insert, so no caller has to check first.
-  Future<void> unlock(AchievementsCompanion badge) =>
-      into(_achievements).insert(badge, mode: InsertMode.insertOrIgnore);
+  ///
+  /// `RETURNING` is what tells a fresh unlock from an ignored one: a row comes
+  /// back when the insert landed and nothing comes back when the index refused
+  /// it. So the answer is the write's own, rather than a read before the write
+  /// that another write could slip past.
+  Future<bool> unlock(AchievementsCompanion badge) async {
+    final Achievement? written = await into(
+      _achievements,
+    ).insertReturningOrNull(badge, mode: InsertMode.insertOrIgnore);
+    return written != null;
+  }
 
   /// Unlocks every badge the climber has earned as of right now.
   ///
@@ -51,13 +92,17 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
   /// full earned set each time rather than working out what changed. That makes
   /// it safe to call on a climb that earns nothing, and it also lets a badge
   /// that was somehow missed arrive on the next climb instead of never.
-  Future<void> unlockEarned({
+  ///
+  /// It reports what actually fired, which is the half the app says out loud.
+  /// Asking for the whole set and reporting the whole set would tell somebody
+  /// on their fourth trip up Batulao that they had just earned three badges.
+  Future<EarnedBadges> unlockEarned({
     required int mountainId,
     required int peaksClimbed,
     required int peaksInLibrary,
     required DateTime at,
   }) async {
-    await unlock(
+    final bool peak = await unlock(
       AchievementsCompanion.insert(
         type: AchievementType.perMountain,
         unlockedAt: at,
@@ -65,12 +110,22 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
       ),
     );
 
+    final milestones = <AchievementType>[];
     for (final type in earnedMilestones(
       peaksClimbed: peaksClimbed,
       peaksInLibrary: peaksInLibrary,
     )) {
-      await unlock(AchievementsCompanion.insert(type: type, unlockedAt: at));
+      if (await unlock(
+        AchievementsCompanion.insert(type: type, unlockedAt: at),
+      )) {
+        milestones.add(type);
+      }
     }
+
+    return EarnedBadges(
+      peak: peak,
+      milestones: List<AchievementType>.unmodifiable(milestones),
+    );
   }
 
   /// Which milestones a climber with this many peaks behind them has reached.

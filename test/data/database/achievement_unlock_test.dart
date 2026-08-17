@@ -251,6 +251,116 @@ void main() {
     expect(await achievements.getAll(), hasLength(2));
   });
 
+  group('what a save reports back', () {
+    // The half of the unlock the app says out loud. It asks for the whole
+    // earned set every time and lets the two partial indexes refuse a repeat,
+    // so which badges are new is something only the write can know.
+
+    test('the first climb reports both badges it fired', () async {
+      final peak = (await library()).first;
+
+      final saved = await climbs.logClimb(
+        mountainId: peak.id,
+        date: DateTime.utc(2026, 8, 11),
+      );
+
+      expect(saved.earned.peak, isTrue);
+      expect(saved.earned.milestones, <AchievementType>[
+        AchievementType.firstClimb,
+      ]);
+      expect(saved.earned.count, 2);
+      expect(saved.earned.isEmpty, isFalse);
+    });
+
+    test('a second climb of the same peak reports nothing', () async {
+      final peak = (await library()).first;
+
+      await climbs.logClimb(
+        mountainId: peak.id,
+        date: DateTime.utc(2026, 8, 11),
+      );
+      final again = await climbs.logClimb(
+        mountainId: peak.id,
+        date: DateTime.utc(2026, 8, 12),
+      );
+
+      expect(again.earned.isEmpty, isTrue);
+      expect(again.earned.peak, isFalse);
+      expect(again.earned.milestones, isEmpty);
+    });
+
+    test('a new peak reports its own badge and no milestone', () async {
+      final peaks = await library();
+
+      await climbs.logClimb(
+        mountainId: peaks[0].id,
+        date: DateTime.utc(2026, 8, 11),
+      );
+      final second = await climbs.logClimb(
+        mountainId: peaks[1].id,
+        date: DateTime.utc(2026, 8, 12),
+      );
+
+      expect(second.earned.peak, isTrue);
+      expect(second.earned.milestones, isEmpty);
+      expect(second.earned.count, 1);
+    });
+
+    test('the halfway climb reports the milestone it crossed', () async {
+      final peaks = await library();
+
+      await climbEach(peaks.take(2));
+      final third = await climbs.logClimb(
+        mountainId: peaks[2].id,
+        date: DateTime.utc(2026, 8, 13),
+      );
+
+      expect(third.earned.peak, isTrue);
+      expect(third.earned.milestones, <AchievementType>[
+        AchievementType.threePeaks,
+      ]);
+    });
+
+    test('a one-peak library reports three badges at once', () async {
+      // The smallest library the app can hold, and the loudest single save in
+      // it: the peak's own badge, the first climb, and every peak there is.
+      for (final peak in await library()) {
+        await mountains.removeById(peak.id);
+      }
+      final only = await mountains.add(
+        MountainsCompanion.insert(name: 'Mt. Talamitam'),
+      );
+
+      final saved = await climbs.logClimb(
+        mountainId: only,
+        date: DateTime.utc(2026, 8, 11),
+      );
+
+      expect(saved.earned.peak, isTrue);
+      expect(saved.earned.milestones, <AchievementType>[
+        AchievementType.firstClimb,
+        AchievementType.allPeaks,
+      ]);
+      expect(saved.earned.count, 3);
+    });
+
+    test('what was reported is what landed in the file', () async {
+      // These could only drift apart in one direction: a badge reported that
+      // was never written. Counted rather than trusted.
+      var reported = 0;
+
+      for (final peak in await library()) {
+        final saved = await climbs.logClimb(
+          mountainId: peak.id,
+          date: DateTime.utc(2026, 8, 11),
+        );
+        reported += saved.earned.count;
+      }
+
+      expect(reported, (await achievements.getAll()).length);
+    });
+  });
+
   test('a climb added straight through add() unlocks nothing', () async {
     // The seam matters: add() is the raw insert tests and seeds use, logClimb
     // is the app's write path. Badges hang off the write path.

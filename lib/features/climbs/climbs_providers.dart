@@ -35,8 +35,8 @@ class MarkClimbedController extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
-  /// Writes one climb and returns its new row id, or null when the write
-  /// failed.
+  /// Writes one climb and returns what the save produced, or null when the
+  /// write failed.
   ///
   /// [date] is a calendar day. The caller passes the day the user picked and
   /// the column's converter drops anything below it, so the clock time riding
@@ -58,7 +58,13 @@ class MarkClimbedController extends AsyncNotifier<void> {
   /// thing the user did and a failure part way leaves neither. Nothing about
   /// that reaches a widget: the sheet calls this, this calls the DAO, and
   /// `test/architecture/layer_rule_test.dart` keeps it that way.
-  Future<int?> save({
+  ///
+  /// **Which badges fired travels back with the row id**, and that is the whole
+  /// reason this returns more than an id. The sheet says what was earned in the
+  /// moment it was earned, and the only place that knows is the write: an
+  /// unlock ignores a badge already in the file, so a badge count read
+  /// afterwards cannot tell a first climb from a fourth.
+  Future<ClimbLogged?> save({
     required int mountainId,
     required DateTime date,
     String? companions,
@@ -67,7 +73,7 @@ class MarkClimbedController extends AsyncNotifier<void> {
   }) async {
     state = const AsyncValue<void>.loading();
     try {
-      final id = await ref
+      final ClimbLogged saved = await ref
           .read(climbDaoProvider)
           .logClimb(
             mountainId: mountainId,
@@ -77,7 +83,7 @@ class MarkClimbedController extends AsyncNotifier<void> {
             photoFilenames: photoFilenames,
           );
       state = const AsyncValue<void>.data(null);
-      return id;
+      return saved;
     } catch (error, stackTrace) {
       state = AsyncValue<void>.error(error, stackTrace);
       return null;

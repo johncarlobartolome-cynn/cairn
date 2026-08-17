@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/tokens.dart';
+import '../../data/providers.dart';
 import '../../shared/extensions/theme_context.dart';
 import '../../shared/widgets/cairn_button.dart';
 import '../../shared/widgets/section_label.dart';
@@ -16,6 +17,18 @@ import 'widgets/climb_photo_field.dart';
 /// the date move at all. Forwards it stops at today, because a climb you have
 /// not made yet is not a climb.
 const int _yearsBack = 50;
+
+/// How long "Climb saved" stays up. Material's own default, kept.
+const Duration _saidBriefly = Duration(seconds: 4);
+
+/// How long the acknowledgement stays up when it names a badge.
+///
+/// Longer, because it is a sentence rather than two words, and the four seconds
+/// that suit a confirmation are not enough to read a badge's name, look up at
+/// the card, and look back. Six is Material's own guidance for a longer message
+/// and it is nowhere near the ten that starts to feel like a thing you have to
+/// dismiss.
+const Duration _saidWithBadges = Duration(seconds: 6);
 
 /// The sheet that logs a climb: the day you were on the mountain, who came
 /// along, and how it went.
@@ -107,7 +120,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     final List<String> photoFilenames =
         ref.read(climbPhotoDraftProvider).valueOrNull ?? const <String>[];
 
-    final int? id = await ref
+    final ClimbLogged? saved = await ref
         .read(markClimbedControllerProvider.notifier)
         .save(
           mountainId: widget.mountainId,
@@ -119,7 +132,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
 
     if (!mounted) return;
 
-    if (id == null) {
+    if (saved == null) {
       setState(() => _failure = 'That climb did not save. Give it another go.');
       return;
     }
@@ -131,7 +144,19 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     photos.keep();
 
     navigator.pop();
-    messenger.showSnackBar(const SnackBar(content: Text('Climb saved')));
+
+    // The one place the app tells somebody what they just earned. See
+    // [climbSavedMessage] for the words and why there are no more of them.
+    final String message = climbSavedMessage(
+      saved.earned,
+      peakName: widget.mountainName,
+    );
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: saved.earned.isEmpty ? _saidBriefly : _saidWithBadges,
+      ),
+    );
   }
 
   @override

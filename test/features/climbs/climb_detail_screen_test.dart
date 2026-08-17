@@ -47,13 +47,13 @@ void main() {
     List<String> photoFilenames = const <String>[],
     String? companions,
     String? notes,
-  }) async => climbs.logClimb(
+  }) async => (await climbs.logClimb(
     mountainId: await pulagId(),
     date: day,
     companions: companions,
     notes: notes,
     photoFilenames: photoFilenames,
-  );
+  )).id;
 
   /// Opens `/climb/:id` against a documents directory the test controls, and
   /// gives the image loader the real clock it needs to reach a file.
@@ -201,7 +201,7 @@ void main() {
         .dy;
     await disposeApp(tester);
 
-    final int many = await climbs.logClimb(
+    final int many = (await climbs.logClimb(
       mountainId: await pulagId(),
       date: day,
       photoFilenames: const <String>[
@@ -209,7 +209,7 @@ void main() {
         'climb_1755300000000002_e5f6a7b8.jpg',
         'climb_1755300000000003_c9d0e1f2.jpg',
       ],
-    );
+    )).id;
 
     await openClimb(tester, many);
     expect(tester.getTopLeft(find.text(climbDayLabel(day))).dy, singleDay);

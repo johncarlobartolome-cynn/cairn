@@ -40,17 +40,17 @@ void main() {
   test('saves the day, the companions and the notes', () async {
     final id = await pulagId();
 
-    final rowId = await controller().save(
+    final saved = await controller().save(
       mountainId: id,
       date: DateTime(2026, 8, 11, 16, 20),
       companions: 'Mara and Enzo',
       notes: 'Sea of clouds at sunrise.',
     );
 
-    expect(rowId, isNotNull);
+    expect(saved, isNotNull);
 
     final climb = (await storedClimbs()).single;
-    expect(climb.id, rowId);
+    expect(climb.id, saved!.id);
     expect(climb.mountainId, id);
     // The calendar day, with the afternoon it was typed in dropped on the way.
     expect(climb.date, DateTime.utc(2026, 8, 11));
@@ -61,12 +61,12 @@ void main() {
   });
 
   test('an untouched optional field stores as nothing at all', () async {
-    final rowId = await controller().save(
+    final saved = await controller().save(
       mountainId: await pulagId(),
       date: DateTime(2026, 8, 11),
     );
 
-    expect(rowId, isNotNull);
+    expect(saved, isNotNull);
 
     final climb = (await storedClimbs()).single;
     expect(climb.companions, isNull);
@@ -112,7 +112,7 @@ void main() {
 
       expect(first, isNotNull);
       expect(second, isNotNull);
-      expect(first, isNot(second));
+      expect(first!.id, isNot(second!.id));
       expect(await storedClimbs(), hasLength(2));
     },
   );
@@ -172,6 +172,34 @@ void main() {
     expect(ids.last, {id});
   });
 
+  test('a save carries back the badges it unlocked', () async {
+    // What the acknowledgement is built from. The controller is the only place
+    // the widget layer can learn this, and it has to be the badges that fired
+    // rather than the badges the climber holds.
+    final id = await pulagId();
+
+    final first = await controller().save(
+      mountainId: id,
+      date: DateTime(2026, 8, 11),
+    );
+
+    expect(first!.earned.peak, isTrue, reason: 'the peak was climbed anew');
+    expect(first.earned.milestones, <AchievementType>[
+      AchievementType.firstClimb,
+    ]);
+    expect(first.earned.count, 2);
+
+    // The same peak again earns nothing, and has to say so. A second sentence
+    // naming two badges would be a lie the first one paid for.
+    final second = await controller().save(
+      mountainId: id,
+      date: DateTime(2026, 8, 12),
+    );
+
+    expect(second!.earned.isEmpty, isTrue);
+    expect(second.earned.count, 0);
+  });
+
   test('reports it is working while the row is on its way', () async {
     final pending = controller().save(
       mountainId: await pulagId(),
@@ -190,12 +218,12 @@ void main() {
     // The foreign key is on, so this is refused by SQLite. The controller has
     // to hand the failure back rather than let it escape into a widget
     // callback, which is what keeps the sheet open with the typing still in it.
-    final rowId = await controller().save(
+    final saved = await controller().save(
       mountainId: 9999,
       date: DateTime(2026, 8, 11),
     );
 
-    expect(rowId, isNull);
+    expect(saved, isNull);
     expect(container.read(markClimbedControllerProvider).hasError, isTrue);
     expect(await storedClimbs(), isEmpty);
   });

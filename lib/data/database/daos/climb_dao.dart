@@ -1,8 +1,25 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show immutable;
 
 import '../database.dart';
 import 'achievement_dao.dart';
 import 'mountain_dao.dart';
+
+/// One saved climb: the row that landed, and the badges that fired with it.
+///
+/// The badges travel with the id because they were written in the same
+/// transaction, so a caller holding this holds the whole of what the save did.
+/// The alternative was reading the badge table back afterwards, which would
+/// have to work out which rows were new by comparing timestamps.
+@immutable
+class ClimbLogged {
+  const ClimbLogged({required this.id, required this.earned});
+
+  /// The new row's id.
+  final int id;
+
+  final EarnedBadges earned;
+}
 
 /// Every query against `climbs`. Nothing above this layer writes SQL.
 class ClimbDao extends DatabaseAccessor<AppDatabase> {
@@ -63,7 +80,7 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
   /// Returns the new row id.
   Future<int> add(ClimbsCompanion climb) => into(_climbs).insert(climb);
 
-  /// Logs one climb from plain values and returns its new row id.
+  /// Logs one climb from plain values and returns what the save produced.
   ///
   /// The write path above this layer hands over a mountain, a day and two
   /// optional strings, so no Drift type travels upwards and nothing outside
@@ -89,7 +106,12 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
   ///
   /// [unlockedAt] is the moment the badges fired, and defaults to now. Tests
   /// pass their own so the stamp on a row is something they can assert.
-  Future<int> logClimb({
+  ///
+  /// **The badges that fired come back with the id**, because this is the only
+  /// place that knows. The unlock ignores a badge already in the file, so which
+  /// of them are new is something only the write can tell, and the app says it
+  /// out loud the moment the sheet closes.
+  Future<ClimbLogged> logClimb({
     required int mountainId,
     required DateTime date,
     String? companions,
@@ -110,14 +132,14 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
 
       // Counted after the insert and inside the same transaction, so the climb
       // being saved is already part of the answer.
-      await _achievements.unlockEarned(
+      final EarnedBadges earned = await _achievements.unlockEarned(
         mountainId: mountainId,
         peaksClimbed: await countClimbedMountains(),
         peaksInLibrary: await _mountains.countAll(),
         at: unlockedAt ?? DateTime.now(),
       );
 
-      return id;
+      return ClimbLogged(id: id, earned: earned);
     });
   }
 
