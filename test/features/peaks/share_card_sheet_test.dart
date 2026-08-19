@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cairn/app/router.dart';
@@ -7,6 +8,7 @@ import 'package:cairn/data/database/database.dart';
 import 'package:cairn/data/providers.dart';
 import 'package:cairn/features/peaks/peaks_providers.dart';
 import 'package:cairn/features/peaks/share_card.dart';
+import 'package:cairn/features/peaks/widgets/share_card_sheet.dart';
 import 'package:cairn/features/peaks/widgets/share_card_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -191,10 +193,7 @@ void main() {
       await tester.tap(shareButton());
       await settleRealWork(tester);
 
-      expect(
-        find.text('That did not share. Give it another go.'),
-        findsOneWidget,
-      );
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsOneWidget);
       // The sheet stays open with the card still on it, so the next tap is a
       // retry rather than a walk back through the app.
       expect(find.byType(ShareCardView), findsOneWidget);
@@ -216,10 +215,137 @@ void main() {
       await settleRealWork(tester);
 
       expect(platform.calls, hasLength(2));
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsNothing);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('two taps inside one frame hand the card over once', (
+      tester,
+    ) async {
+      // The T32 bug. The button only starts ignoring presses on the frame after
+      // the first tap, so both taps land on the tree that was still idle, and the
+      // second one rendered the card again and put it in front of the platform a
+      // second time. What the receiving end saw was the same card twice.
+      final FakeShareSheet platform = FakeShareSheet();
+      final int id = await climbPeak('Mt. Pulag', DateTime.utc(2026, 8, 11));
+      await openPeak(tester, id, platform: platform);
+
+      await tester.tap(shareControl());
+      await tester.pumpAndSettle();
+
+      // No pump between the two, and that gap is the whole test.
+      await tester.tap(shareButton());
+      await tester.tap(shareButton());
+
+      // Twice through on purpose. A second handover runs a moment behind the
+      // first, so reading the count the instant the first one landed would find
+      // one either way.
+      await settleRealWork(tester);
+      await settleRealWork(tester);
+
+      expect(platform.calls, hasLength(1));
+      // And nothing was said about a failure, which is what a second render
+      // giving up on a boundary already being read would have put here.
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsNothing);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('the tap that was refused says nothing about a failure', (
+      tester,
+    ) async {
+      // Why the guard is not in the controller. Refusing there means answering
+      // the second call with false, and false is what a failed handover already
+      // returns, so the sheet would put its failure line up over a card that is
+      // on its way. The handover is held open here, so the frame that would carry
+      // that lie is a frame this test can look at.
+      final _ControlledShareSheet platform = _ControlledShareSheet()
+        ..holdHandovers();
+      // Released whatever happens, including on a failed expectation below. A
+      // handover left parked never answers, and the share waiting on it would
+      // resume inside whichever test ran next.
+      addTearDown(platform.letEverythingThrough);
+
+      final int id = await climbPeak('Mt. Pulag', DateTime.utc(2026, 8, 11));
+      await openPeak(tester, id, platform: platform);
+
+      await tester.tap(shareControl());
+      await tester.pumpAndSettle();
+
+      await tester.tap(shareButton());
+      await tester.tap(shareButton());
+      await settleRealWork(tester);
+
+      // All read while the handover is held, all asserted after it has been let
+      // go. An expectation that failed with one still parked would leave a share
+      // waiting on an answer that never comes.
+      final int parkedWhileSharing = platform.parked;
+      final int callsWhileSharing = platform.calls.length;
+      final bool blamedTheShare = find
+          .text(ShareCardSheet.shareFailedMessage)
+          .evaluate()
+          .isNotEmpty;
+      final bool cardStillOnScreen = find
+          .byType(ShareCardView)
+          .evaluate()
+          .isNotEmpty;
+
+      // And the handover the first tap started still lands.
+      platform.letEverythingThrough();
+      await settleRealWork(tester);
+
+      // A floor rather than a count, so the verdict on a second handover belongs
+      // to the assertion below and its reason rather than to this sanity check.
       expect(
-        find.text('That did not share. Give it another go.'),
-        findsNothing,
+        parkedWhileSharing,
+        greaterThanOrEqualTo(1),
+        reason: 'nothing was being held open',
       );
+      expect(
+        callsWhileSharing,
+        1,
+        reason: 'the second tap reached the platform',
+      );
+      expect(
+        blamedTheShare,
+        isFalse,
+        reason: 'the refused tap put a failure line over a share in flight',
+      );
+      expect(cardStillOnScreen, isTrue);
+      expect(platform.calls, hasLength(1));
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsNothing);
+
+      await disposeApp(tester);
+    });
+
+    testWidgets('a handover that really failed can be tapped again and lands', (
+      tester,
+    ) async {
+      // The other half of a guard: it has to let go. One that latched would pass
+      // both tests above and leave the card on screen under a button that does
+      // nothing. This sheet stays open on a handover that worked as well, so the
+      // guard cannot let go on the failure branch alone the way T31's does.
+      final _ControlledShareSheet platform = _ControlledShareSheet()
+        ..refuseNextHandover = true;
+      final int id = await climbPeak('Mt. Ulap', DateTime.utc(2026, 8, 11));
+      await openPeak(tester, id, platform: platform);
+
+      await tester.tap(shareControl());
+      await tester.pumpAndSettle();
+
+      await tester.tap(shareButton());
+      await settleRealWork(tester);
+
+      expect(platform.calls, hasLength(1));
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsOneWidget);
+
+      // The same button, tapped again, with the card still on the sheet.
+      await tester.tap(shareButton());
+      await settleRealWork(tester);
+
+      expect(platform.calls, hasLength(2));
+      expect(find.text(ShareCardSheet.shareFailedMessage), findsNothing);
 
       await disposeApp(tester);
     });
@@ -291,4 +417,67 @@ void main() {
       expect(platform.last.filename, 'cairn-mt-pulag.png');
     });
   });
+}
+
+/// The platform seam with a valve and a switch on it.
+///
+/// Two things [FakeShareSheet] will not do on demand: hold a handover open, so a
+/// test can look at the sheet while one is in flight, and refuse one once, so a
+/// test can tap again afterwards and prove the second one got through.
+class _ControlledShareSheet extends FakeShareSheet {
+  /// One per handover parked at the gate.
+  final List<Completer<void>> _gates = <Completer<void>>[];
+
+  bool _holding = false;
+
+  /// The next handover throws instead of landing, once.
+  bool refuseNextHandover = false;
+
+  /// How many handovers are parked right now.
+  int get parked => _gates.length;
+
+  /// Handovers wait from here on, rather than answering.
+  void holdHandovers() => _holding = true;
+
+  /// Lets every handover answer: the ones parked now and the ones still to come.
+  void letEverythingThrough() {
+    _holding = false;
+    final List<Completer<void>> waiting = List<Completer<void>>.of(_gates);
+    _gates.clear();
+    for (final Completer<void> gate in waiting) {
+      if (!gate.isCompleted) gate.complete();
+    }
+  }
+
+  @override
+  Future<void> shareImage({
+    required Uint8List png,
+    required String filename,
+    required String message,
+  }) async {
+    // Recorded before the gate, because the count is the sharp assertion about a
+    // double tap. A card can be counted a moment too early, but a handover that
+    // was never made cannot turn up later.
+    await super.shareImage(png: png, filename: filename, message: message);
+
+    if (_holding) {
+      final Completer<void> gate = Completer<void>();
+      _gates.add(gate);
+      await gate.future;
+    }
+
+    if (refuseNextHandover) {
+      refuseNextHandover = false;
+      throw const _HandoverRefused();
+    }
+  }
+}
+
+/// Thrown by [_ControlledShareSheet] in place of a handover, so a refusal a test
+/// asked for reads differently from one it did not.
+class _HandoverRefused implements Exception {
+  const _HandoverRefused();
+
+  @override
+  String toString() => 'the test refused this handover';
 }

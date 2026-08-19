@@ -845,6 +845,39 @@ void main() {
     await tester.pumpAndSettle();
     await disposeApp(tester);
   });
+
+  testWidgets('two taps on Add photos open the picker once', (tester) async {
+    // The T32 half of the same shape, one screen over. The add row greys itself
+    // out off a rebuild, so both taps land on the row that was still live, and
+    // the second one opened the system picker again and started a second copy
+    // run over the same files.
+    await openSheet(tester, await pulagId());
+
+    picker.paths = <String>[
+      for (final String name in <String>['a.jpg', 'b.jpg'])
+        writePickedFile(picked, name).path,
+    ];
+
+    // No pump between the two, and that gap is the whole test.
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+
+    await pumpRealUntil(
+      tester,
+      () => store.landed >= 2,
+      waitingFor: 'both copies of the one pick to land',
+    );
+    // Generous on purpose. A second run copies a moment behind the first, so
+    // counting the instant the first pick finished would find two either way.
+    await pumpRealAsync(tester);
+
+    expect(picker.openings, 1);
+    expect(store.landed, 2, reason: 'a second run copied the same files again');
+    expect(photosOnDisk(), hasLength(2));
+    expect(find.byType(ClimbPhoto), findsNWidgets(2));
+
+    await disposeApp(tester);
+  });
 }
 
 /// The write path with a valve and a switch on it.

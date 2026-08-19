@@ -272,6 +272,32 @@ void main() {
       await pick;
     });
 
+    test('a second pick while one is still copying is refused', () async {
+      // The T32 double tap, at the layer the guard is on. The add row greys
+      // itself out off a rebuild, so two taps in one frame both reach here, and
+      // the second one opened the picker again and copied the same files a
+      // second time.
+      open();
+      holdTwo();
+
+      final Future<void> pick = draft().addFromPicker();
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the first copy to be parked',
+      );
+
+      // Not awaited. A refused call answers at once, and one that got through
+      // would be waiting on a copy this test is still holding.
+      final Future<void> refused = draft().addFromPicker();
+      expect(picker.openings, 1);
+
+      store.letEverythingThrough();
+      await Future.wait<void>(<Future<void>>[pick, refused]);
+
+      expect(attached(), hasLength(2));
+      expect(filesOnDisk(), hasLength(2));
+    });
+
     test('a copy that lands after the sheet is gone is not left behind', () async {
       // The sheet cannot call a copy back once it is reading bytes, so the copy
       // checks on the way out instead. Without that, closing the sheet during a
