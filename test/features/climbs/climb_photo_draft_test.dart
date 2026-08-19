@@ -205,12 +205,19 @@ void main() {
       holdTwo();
 
       final Future<void> pick = draft().addFromPicker();
-      await pumpEventQueue();
-      expect(store.waiting, 1, reason: 'the first copy is parked');
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the first copy to be parked',
+      );
       expect(attached(), isEmpty);
 
       store.letOneThrough();
-      await pumpEventQueue();
+      // Waiting for the second copy to park is how this knows the first one
+      // finished, so what is attached by now is not a guess.
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the second copy to be parked',
+      );
       expect(attached(), hasLength(1), reason: 'the first copy has landed');
 
       store.letOneThrough();
@@ -223,11 +230,17 @@ void main() {
       holdTwo();
 
       final Future<void> pick = draft().addFromPicker();
-      await pumpEventQueue();
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the first copy to be parked',
+      );
       expect(container.read(climbPhotoDraftProvider).isLoading, isTrue);
 
       store.letOneThrough();
-      await pumpEventQueue();
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the second copy to be parked',
+      );
       expect(
         container.read(climbPhotoDraftProvider).isLoading,
         isTrue,
@@ -246,7 +259,10 @@ void main() {
       holdTwo();
 
       final Future<void> pick = draft().addFromPicker();
-      await pumpEventQueue();
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the first copy to be parked',
+      );
       expect(attached(), isEmpty);
 
       final Future<List<String>> settling = draft().settled();
@@ -264,15 +280,23 @@ void main() {
       holdTwo();
 
       final Future<void> pick = draft().addFromPicker();
-      await pumpEventQueue();
+      await waitUntil(
+        () => store.waiting == 1,
+        waitingFor: 'the first copy to be parked',
+      );
       store.letOneThrough();
-      await pumpEventQueue();
-      expect(filesOnDisk(), hasLength(1));
+      await waitUntil(
+        () => filesOnDisk().length == 1,
+        waitingFor: 'the first copy to land',
+      );
 
       sub.close();
       store.letEverythingThrough();
       await pick;
-      await pumpEventQueue();
+      await waitUntil(
+        () => filesOnDisk().isEmpty,
+        waitingFor: 'both copies to be cleared up',
+      );
 
       expect(filesOnDisk(), isEmpty);
     });
@@ -292,7 +316,10 @@ void main() {
 
     draft().keep(written);
     sub.close();
-    await pumpEventQueue();
+    await waitUntil(
+      () => filesOnDisk().length == 1,
+      waitingFor: 'the photo the row does not name to be cleared up',
+    );
 
     expect(filesOnDisk(), written);
   });

@@ -46,6 +46,24 @@ Future<void> pumpRealAsync(WidgetTester tester, {int rounds = 24}) async {
   await tester.pump();
 }
 
+/// Waits on the real clock until [ready] says the work is done.
+///
+/// For a test with no widget in it. How long a copy takes depends on what else
+/// the machine is doing, so a fixed number of turns through the event queue is a
+/// race the suite loses on the day it is busiest. Waiting for the answer costs
+/// nothing when it arrives quickly and does not lie when it does not.
+Future<void> waitUntil(
+  FutureOr<bool> Function() ready, {
+  required String waitingFor,
+  int giveUpAfter = 400,
+}) async {
+  for (var round = 0; round < giveUpAfter; round++) {
+    if (await ready()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
+  fail('gave up waiting for $waitingFor');
+}
+
 /// Pumps on the real clock until [ready] says the work is done.
 ///
 /// One copy is half a dozen trips to the disk, so a fixed number of rounds is a
