@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cairn/app/router.dart';
@@ -65,7 +66,14 @@ void main() {
       find.ancestor(of: find.text(hint), matching: find.byType(TextField));
 
   /// Opens peak detail and taps its primary action.
-  Future<void> openSheet(WidgetTester tester, int mountainId) async {
+  ///
+  /// [overrides] go on top of the photo ones every test here needs, for a test
+  /// that also has to control when the write lands or whether it lands at all.
+  Future<void> openSheet(
+    WidgetTester tester,
+    int mountainId, {
+    List<Override> overrides = const <Override>[],
+  }) async {
     await pumpApp(
       tester,
       db,
@@ -74,6 +82,7 @@ void main() {
         documentsDirectoryOverride(documents),
         photoPickerProvider.overrideWithValue(picker),
         photoStoreOverride(store),
+        ...overrides,
       ],
     );
     await tester.tap(find.text('Mark climbed'));
@@ -669,4 +678,252 @@ void main() {
 
     await disposeApp(tester);
   });
+
+  testWidgets('two taps inside one frame log one climb, not two', (
+    tester,
+  ) async {
+    // The T31 bug. The button only starts ignoring presses on the frame after
+    // the first tap, and the save waits on the photo draft before it writes, so
+    // both taps were through and past anything that could stop them.
+    final int id = await pulagId();
+    await openSheet(tester, id);
+
+    // No pump between the two, and that gap is the whole test. The tree both of
+    // these land on is the idle one.
+    await tester.tap(find.text('Save climb'));
+    await tester.tap(find.text('Save climb'));
+
+    await waitForTheSave(tester);
+    // Generous on purpose. A second row runs a moment behind the first, so
+    // counting the instant the first one landed would find one row either way.
+    await pumpRealAsync(tester);
+
+    final List<Climb> rows = await climbs.getAll();
+    expect(rows, hasLength(1));
+    expect(rows.single.mountainId, id);
+
+    // And one tap's worth of sheet was dismissed, on the save that landed.
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkClimbedSheet), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('the tap that was refused says nothing about a failure', (
+    tester,
+  ) async {
+    // Why the guard is not in the controller. Refusing there means answering the
+    // second call with null, and null is what a failed write already returns, so
+    // the sheet would put its failure line up over a climb that is saving fine.
+    // The write is held open here, so the frame that would carry that lie is a
+    // frame this test can look at.
+    final _ControlledClimbDao writes = _ControlledClimbDao(db)..holdWrites();
+    // Released whatever happens, including on a failed expectation below. A
+    // write left parked never answers, and the save waiting on it would resume
+    // inside whichever test ran next.
+    addTearDown(writes.letEverythingThrough);
+
+    await openSheet(
+      tester,
+      await pulagId(),
+      overrides: <Override>[climbDaoProvider.overrideWithValue(writes)],
+    );
+
+    await tester.tap(find.text('Save climb'));
+    await tester.tap(find.text('Save climb'));
+
+    await pumpRealUntil(
+      tester,
+      () => writes.parked >= 1,
+      waitingFor: 'the write to be parked',
+    );
+    await pumpRealAsync(tester);
+
+    // Read while the write is held, asserted after it has been let go. An
+    // expectation that failed with a write still parked would leave a save
+    // waiting on an answer that never comes, and it resumes inside whichever
+    // test runs next.
+    final int callsWhileSaving = writes.calls;
+    final bool sheetOpen = find.byType(MarkClimbedSheet).evaluate().isNotEmpty;
+    final bool blamedTheSave = find
+        .text(MarkClimbedSheet.saveFailedMessage)
+        .evaluate()
+        .isNotEmpty;
+
+    // And the save the first tap started still lands.
+    writes.letEverythingThrough();
+    await waitForTheSave(tester);
+
+    expect(callsWhileSaving, 1, reason: 'the second tap reached the write');
+    expect(sheetOpen, isTrue);
+    expect(
+      blamedTheSave,
+      isFalse,
+      reason: 'the refused tap put a failure line over a save in flight',
+    );
+    expect(await climbs.getAll(), hasLength(1));
+
+    await tester.pumpAndSettle();
+    await disposeApp(tester);
+  });
+
+  testWidgets('a save that genuinely failed can be tapped again and lands', (
+    tester,
+  ) async {
+    // The other half of a guard: it has to let go. One that latched would pass
+    // every duplicate test above and leave the sheet holding what was typed
+    // behind a button that does nothing.
+    final int id = await pulagId();
+    final _ControlledClimbDao writes = _ControlledClimbDao(db)
+      ..refuseNextWrite = true;
+
+    await openSheet(
+      tester,
+      id,
+      overrides: <Override>[climbDaoProvider.overrideWithValue(writes)],
+    );
+
+    await tester.tap(find.text('Save climb'));
+    await pumpRealAsync(tester);
+
+    expect(find.text(MarkClimbedSheet.saveFailedMessage), findsOneWidget);
+    expect(find.byType(MarkClimbedSheet), findsOneWidget);
+    expect(await climbs.getAll(), isEmpty);
+
+    // The same button, tapped again, with everything still in the sheet.
+    await tester.tap(find.text('Save climb'));
+    await pumpRealUntil(
+      tester,
+      () async => (await climbs.getAll()).isNotEmpty,
+      waitingFor: 'the second attempt to be written',
+    );
+
+    expect(writes.calls, 2);
+    expect((await climbs.getAll()).single.mountainId, id);
+
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkClimbedSheet), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('two taps while photos are copying log one climb with every one', (
+    tester,
+  ) async {
+    // T30 and T31 in the frame a real thumb hits: the pick is copying, neither
+    // the photo row nor the button has been rebuilt busy yet, and the tap lands
+    // twice. One row, and it holds all three photos.
+    await openSheet(tester, await pulagId());
+
+    store.holdCopies();
+    picker.paths = <String>[
+      for (final String name in <String>['a.jpg', 'b.jpg', 'c.jpg'])
+        writePickedFile(picked, name).path,
+    ];
+
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    await tester.tap(find.text('Save climb'));
+    await tester.tap(find.text('Save climb'));
+
+    await pumpRealUntil(
+      tester,
+      () => store.waiting == 1,
+      waitingFor: 'the first copy to be parked',
+    );
+    expect(find.byType(ClimbPhoto), findsNothing, reason: 'nothing has copied');
+
+    store.letEverythingThrough();
+    await waitForTheSave(tester);
+    await pumpRealAsync(tester);
+
+    final List<Climb> rows = await climbs.getAll();
+    expect(rows, hasLength(1));
+    expect(rows.single.photoFilenames, hasLength(3));
+    // And nothing was copied that the one saved row does not name.
+    expect(filesOnDisk(), rows.single.photoFilenames.toList()..sort());
+
+    await tester.pumpAndSettle();
+    await disposeApp(tester);
+  });
+}
+
+/// The write path with a valve and a switch on it.
+///
+/// Two things the real DAO will not do on demand: hold a write open, so a test
+/// can look at the sheet while one is in flight, and refuse one, so a test can
+/// tap again afterwards. Anything it neither holds nor refuses goes to the real
+/// query underneath.
+class _ControlledClimbDao extends ClimbDao {
+  _ControlledClimbDao(super.db);
+
+  /// One per write parked at the gate.
+  final List<Completer<void>> _gates = <Completer<void>>[];
+
+  bool _holding = false;
+
+  /// The next write throws instead of landing, once.
+  bool refuseNextWrite = false;
+
+  /// How many times a write was asked for, whether it landed or not.
+  ///
+  /// The sharp assertion about a double tap. Rows can be counted a moment too
+  /// early, but a call that was never made cannot turn up later.
+  int calls = 0;
+
+  /// How many writes are parked right now.
+  int get parked => _gates.length;
+
+  /// Writes wait from here on, rather than going to the file.
+  void holdWrites() => _holding = true;
+
+  /// Lets every write land: the ones parked now and the ones still to come.
+  void letEverythingThrough() {
+    _holding = false;
+    final List<Completer<void>> waiting = List<Completer<void>>.of(_gates);
+    _gates.clear();
+    for (final Completer<void> gate in waiting) {
+      if (!gate.isCompleted) gate.complete();
+    }
+  }
+
+  @override
+  Future<ClimbLogged> logClimb({
+    required int mountainId,
+    required DateTime date,
+    String? companions,
+    String? notes,
+    List<String> photoFilenames = const <String>[],
+    DateTime? unlockedAt,
+  }) async {
+    calls++;
+
+    if (_holding) {
+      final Completer<void> gate = Completer<void>();
+      _gates.add(gate);
+      await gate.future;
+    }
+
+    if (refuseNextWrite) {
+      refuseNextWrite = false;
+      throw const _WriteRefused();
+    }
+
+    return super.logClimb(
+      mountainId: mountainId,
+      date: date,
+      companions: companions,
+      notes: notes,
+      photoFilenames: photoFilenames,
+      unlockedAt: unlockedAt,
+    );
+  }
+}
+
+/// Thrown by [_ControlledClimbDao] in place of a write, so a refusal a test
+/// asked for reads differently from one it did not.
+class _WriteRefused implements Exception {
+  const _WriteRefused();
+
+  @override
+  String toString() => 'the test refused this write';
 }
