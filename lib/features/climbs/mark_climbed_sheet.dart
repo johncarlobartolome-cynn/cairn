@@ -53,6 +53,14 @@ class MarkClimbedSheet extends ConsumerStatefulWidget {
   /// Shown under the title, so the sheet says which peak it is about.
   final String mountainName;
 
+  /// Said when a save came back with no row on it, above the button.
+  ///
+  /// Only ever for a write that really failed. A tap the sheet refused because
+  /// it is already saving says nothing at all, since nothing went wrong and a
+  /// line like this in that moment would be the app lying about its own work.
+  static const String saveFailedMessage =
+      'That climb did not save. Give it another go.';
+
   /// Opens the sheet over whatever route [context] is on.
   ///
   /// Scroll-controlled, so the sheet can grow past the usual half-screen cap
@@ -92,6 +100,25 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
   /// sheet stays open with everything the user typed still in it.
   String? _failure;
 
+  /// True from the moment a tap is accepted until that save is done with.
+  ///
+  /// The guard against a second tap, and it is a plain field rather than
+  /// anything the build reads because it is read and written with no await in
+  /// between. That is the whole of why it works: two taps in one frame both run
+  /// [_save] before either of them reaches a write, so the second one finds this
+  /// already true and leaves.
+  ///
+  /// Neither `state.isLoading` on the controller nor the button's own `busy` can
+  /// do this job. Both travel through a rebuild, so they start refusing presses
+  /// one frame late, and one frame is long enough for a thumb.
+  ///
+  /// It lives on the sheet rather than in the controller because a refusal has to
+  /// be silent, and only the sheet can tell the two answers apart. The controller
+  /// reports a failed write by handing back null, so a refusal reported the same
+  /// way would put [MarkClimbedSheet.saveFailedMessage] on screen for a climb
+  /// that is saving perfectly well.
+  bool _saving = false;
+
   @override
   void dispose() {
     _companions.dispose();
@@ -111,6 +138,12 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
   }
 
   Future<void> _save() async {
+    // First line in the method, and nothing above it may ever await. Every line
+    // below is on the far side of one, which is the window two taps in a single
+    // frame used to walk through.
+    if (_saving) return;
+    _saving = true;
+
     // Both read before the await, because the sheet is gone by the time the
     // snack bar goes up and its context cannot be looked through then.
     final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
@@ -139,7 +172,12 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     if (!mounted) return;
 
     if (saved == null) {
-      setState(() => _failure = 'That climb did not save. Give it another go.');
+      // Let go here, and this is the only place that does. A save that really
+      // failed has to be tappable again, so the guard cannot be allowed to latch:
+      // that would leave the sheet holding what was typed behind a button that
+      // does nothing.
+      _saving = false;
+      setState(() => _failure = MarkClimbedSheet.saveFailedMessage);
       return;
     }
 

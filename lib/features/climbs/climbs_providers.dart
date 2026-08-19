@@ -25,8 +25,16 @@ final markClimbedControllerProvider =
 /// Logs a climb against a peak.
 ///
 /// [AsyncNotifier] rather than a plain [Notifier] because the write is a
-/// database round trip: the state carries loading and error, which is what lets
-/// the sheet show a busy button and refuse a second tap.
+/// database round trip: the state carries loading and error, and the sheet draws
+/// its busy button off the loading.
+///
+/// **The state does not refuse a second tap.** This comment said it did from T15
+/// until T31, and a comment overstating a guarantee is how the duplicate stayed
+/// invisible. A widget only reads this through a rebuild, so the button starts
+/// ignoring presses on the frame after the first tap, and two taps inside one
+/// frame both land on the tree that was still idle. Both walked through [save]
+/// and each wrote a row. The guard is a synchronous flag in
+/// `mark_climbed_sheet.dart`, checked before that method awaits anything.
 ///
 /// It holds no result. Reads are Drift `watch()` streams, so a screen showing
 /// climbs updates itself off the insert with no invalidation and nothing to
@@ -37,6 +45,12 @@ class MarkClimbedController extends AsyncNotifier<void> {
 
   /// Writes one climb and returns what the save produced, or null when the
   /// write failed.
+  ///
+  /// **Null means the write failed and nothing else.** Two calls write two rows,
+  /// because a peak climbed twice on one day is two climbs and nothing about a
+  /// climb is unique. Deciding that a second tap is not a second climb belongs to
+  /// the caller, and it has to, since a refusal reported from here would arrive
+  /// as the same null a failure gives and the sheet would say the save failed.
   ///
   /// [date] is a calendar day. The caller passes the day the user picked and
   /// the column's converter drops anything below it, so the clock time riding
