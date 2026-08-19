@@ -144,14 +144,28 @@ final shareCardControllerProvider =
 /// The app's one path out to another app.
 ///
 /// [AsyncNotifier] rather than a plain [Notifier] because handing over is real
-/// work with a wait in the middle: the state carries loading and error, which
-/// is what lets the sheet show a busy button and refuse a second tap while the
-/// system sheet is coming up.
+/// work with a wait in the middle: the state carries loading and error, and the
+/// sheet draws its busy button off the loading.
+///
+/// **The state does not refuse a second tap.** This comment said it did from T21
+/// until T32, and a comment overstating a guarantee is how the duplicate stayed
+/// invisible. A widget only reads this through a rebuild, so the button starts
+/// ignoring presses on the frame after the first tap, and two taps inside one
+/// frame both land on the tree that was still idle. Both walked through [share]
+/// and each handed the card to the platform. The guard is a synchronous flag in
+/// `share_card_sheet.dart`, checked before that method awaits anything.
 class ShareCardController extends AsyncNotifier<void> {
   @override
   FutureOr<void> build() {}
 
   /// Renders [card] and shares it. Returns false when nothing was handed over.
+  ///
+  /// **False means the handover failed and nothing else.** Two calls hand the
+  /// card over twice, because sending one peak to two people is two shares and
+  /// there is nothing here that could tell them apart. Deciding that a second tap
+  /// is not a second share belongs to the caller, and it has to, since a refusal
+  /// reported from here would arrive as the same false a failure gives and the
+  /// sheet would say the share failed.
   ///
   /// [render] is passed in rather than done here because painting belongs to
   /// the widget layer: the picture is a real widget on a real screen and the

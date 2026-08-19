@@ -155,6 +155,10 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
 
   /// The picks still copying. A save waits on these rather than reading past
   /// them; see [settled].
+  ///
+  /// It is also the guard against a second tap on the add row, because it is the
+  /// one record of whether a pick is already running. A flag beside it would be
+  /// the same fact kept twice, and the two would drift.
   final List<Future<void>> _copying = <Future<void>>[];
 
   /// The filenames a climb row is holding. Anything copied by this sheet and
@@ -203,7 +207,27 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
   ///
   /// The returned future is the whole run. Nothing in the UI awaits it, which is
   /// why the run is also recorded in [_copying] for [settled] to find.
+  ///
+  /// **A call made while a pick is already running does nothing at all.** The add
+  /// row greys itself out off a rebuild, so it starts ignoring presses on the
+  /// frame after the first tap, and two taps inside one frame both land on the
+  /// row that was still live. Both opened the system picker and both started a
+  /// copy run, which is the same photos copied twice and the picker put in front
+  /// of somebody who had already chosen.
+  ///
+  /// The guard is here rather than on the widget for two reasons. The refusal is
+  /// silent either way, so there is nothing for a widget to decide: this returns
+  /// void, a refused call publishes no error, and the row looks exactly as it did.
+  /// And `ClimbPhotoField` is a `ConsumerWidget`, so a flag there would be a
+  /// second copy of a fact this class already keeps, one rebuild behind it.
+  ///
+  /// [_copying] is read and written with nothing between them that can yield, so
+  /// the second of two taps in one frame cannot get past the check: the list is
+  /// non-empty by the time this call returns, and Dart runs the next tap's
+  /// handler after that.
   Future<void> addFromPicker() {
+    if (_copying.isNotEmpty) return Future<void>.value();
+
     final Future<void> run = _pickAndCopy();
     _copying.add(run);
     return run.whenComplete(() => _copying.remove(run));

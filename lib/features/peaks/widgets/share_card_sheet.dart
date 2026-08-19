@@ -33,6 +33,15 @@ class ShareCardSheet extends ConsumerStatefulWidget {
 
   final ShareCard card;
 
+  /// Said when nothing was handed over, above the button.
+  ///
+  /// Only ever for a handover that really failed. A tap the sheet refused
+  /// because it is already sharing says nothing at all, since the card is on its
+  /// way and a line like this in that moment would be the app reporting a
+  /// failure that has not happened.
+  static const String shareFailedMessage =
+      'That did not share. Give it another go.';
+
   /// Opens the sheet over whatever route [context] is on.
   ///
   /// Scroll-controlled, so a card made taller by a long peak name or a large
@@ -60,14 +69,49 @@ class _ShareCardSheetState extends ConsumerState<ShareCardSheet> {
   /// stays open with the card still on it.
   String? _failure;
 
+  /// True from the moment a tap is accepted until that handover is done with.
+  ///
+  /// The guard against a second tap, and a plain field rather than anything the
+  /// build reads, because it is read and written with no await in between. That
+  /// is the whole of why it works: two taps in one frame both run [_share]
+  /// before either of them has rendered anything, so the second one finds this
+  /// already true and leaves.
+  ///
+  /// Neither `state.isLoading` on the controller nor the button's own `busy` can
+  /// do this job. Both travel through a rebuild, so they start refusing presses
+  /// one frame late, and one frame is long enough for a thumb. What got through
+  /// that frame is not a harmless repeat: the card is rendered again and handed
+  /// to the platform a second time, so the person on the other end of the thread
+  /// is sent the same card twice.
+  ///
+  /// It lives on the sheet rather than in the controller because a refusal has to
+  /// be silent, and only the sheet can tell the two answers apart. The controller
+  /// reports a failed handover by returning false, so a refusal reported the same
+  /// way would put [ShareCardSheet.shareFailedMessage] on screen over a card that
+  /// is going out perfectly well.
+  bool _sharing = false;
+
   Future<void> _share() async {
+    // First line in the method, and nothing above it may ever await. Every line
+    // below is on the far side of one, which is the window two taps in a single
+    // frame used to walk through.
+    if (_sharing) return;
+    _sharing = true;
+
     final bool shared = await ref
         .read(shareCardControllerProvider.notifier)
         .share(card: widget.card, render: _render);
 
+    // Let go on both answers, and before the early return below. This sheet
+    // stays open on a handover that worked, unlike the mark-climbed one that
+    // pops itself, so sending the same card on to a second app is an ordinary
+    // next thing to do. A guard that only let go on the failure branch would
+    // leave the card on screen under a button that does nothing.
+    _sharing = false;
+
     if (!mounted) return;
     setState(() {
-      _failure = shared ? null : 'That did not share. Give it another go.';
+      _failure = shared ? null : ShareCardSheet.shareFailedMessage;
     });
   }
 
