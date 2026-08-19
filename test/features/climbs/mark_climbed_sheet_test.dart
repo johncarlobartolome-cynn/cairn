@@ -10,6 +10,7 @@ import 'package:cairn/features/climbs/climb_facts.dart';
 import 'package:cairn/features/climbs/mark_climbed_sheet.dart';
 import 'package:cairn/features/climbs/widgets/climb_photo.dart';
 import 'package:cairn/features/climbs/widgets/climb_photo_field.dart';
+import 'package:cairn/shared/widgets/cairn_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -39,6 +40,10 @@ void main() {
 
   late FakePhotoPicker picker;
 
+  /// The real store, with a valve on it. Every test gets one; the tests about a
+  /// copy in flight are the only ones that close it.
+  late HeldPhotoStore store;
+
   setUp(() {
     db = createTestDatabase();
     climbs = ClimbDao(db);
@@ -46,6 +51,7 @@ void main() {
     documents = createTempDirectory('documents');
     picked = createTempDirectory('picked');
     picker = FakePhotoPicker();
+    store = HeldPhotoStore(documents);
   });
 
   tearDown(() => db.close());
@@ -67,6 +73,7 @@ void main() {
       overrides: <Override>[
         documentsDirectoryOverride(documents),
         photoPickerProvider.overrideWithValue(picker),
+        photoStoreOverride(store),
       ],
     );
     await tester.tap(find.text('Mark climbed'));
@@ -92,6 +99,37 @@ void main() {
     for (final FileSystemEntity entity in documents.listSync())
       entity.path.split(Platform.pathSeparator).last,
   ]..sort();
+
+  /// The sheet's own save button. Peak detail has one behind it, so the finder
+  /// has to say which of the two it means.
+  CairnButton saveButton(WidgetTester tester) => tester.widget<CairnButton>(
+    find.descendant(
+      of: find.byType(MarkClimbedSheet),
+      matching: find.byType(CairnButton),
+    ),
+  );
+
+  /// Picks [names] with the store holding every copy, and returns once the first
+  /// one is parked. The test decides when each lands from there.
+  Future<void> startHeldPick(WidgetTester tester, List<String> names) async {
+    store.holdCopies();
+    picker.paths = <String>[
+      for (final String name in names) writePickedFile(picked, name).path,
+    ];
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    await pumpRealUntil(
+      tester,
+      () => store.waiting == 1,
+      waitingFor: 'the first copy to be parked',
+    );
+  }
+
+  /// Returns once a climb row has landed in the file.
+  Future<void> waitForTheSave(WidgetTester tester) => pumpRealUntil(
+    tester,
+    () async => (await climbs.getAll()).isNotEmpty,
+    waitingFor: 'the climb to be written',
+  );
 
   /// Lets fire-and-forget cleanup reach the disk before a test looks.
   Future<void> letCleanupFinish(WidgetTester tester) => pumpRealAsync(tester);
@@ -443,6 +481,174 @@ void main() {
     // And the climb still saves, with no photos on it.
     await tapSave(tester);
     expect((await climbs.getAll()).single.photoFilenames, isEmpty);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a save tapped while photos are still copying keeps every one', (
+    tester,
+  ) async {
+    // The T30 bug, and the reason it went unseen: no test ever saved during a
+    // pick. The draft published the list from before the pick until the last
+    // copy landed, the save read that list, and a climb logged in that window
+    // was written with no photos on it and said nothing about it.
+    final int id = await pulagId();
+    await openSheet(tester, id);
+
+    store.holdCopies();
+    picker.paths = <String>[
+      for (final String name in <String>['a.jpg', 'b.jpg', 'c.jpg'])
+        writePickedFile(picked, name).path,
+    ];
+
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+    // No pump between the two taps, and that gap is the whole test. The save
+    // button shows busy one frame after a pick starts, so this is the frame a
+    // thumb beats it to: the tree this tap lands on is the idle one.
+    await tester.tap(find.text('Save climb'));
+
+    await pumpRealUntil(
+      tester,
+      () => store.waiting == 1,
+      waitingFor: 'the first copy to be parked',
+    );
+    expect(find.byType(ClimbPhoto), findsNothing, reason: 'nothing has copied');
+
+    store.letEverythingThrough();
+    await waitForTheSave(tester);
+
+    final Climb saved = (await climbs.getAll()).single;
+    expect(saved.photoFilenames, hasLength(3));
+    // And nothing was copied that the saved row does not name.
+    expect(filesOnDisk(), saved.photoFilenames.toList()..sort());
+
+    await tester.pumpAndSettle();
+    await disposeApp(tester);
+  });
+
+  testWidgets('the photo row says it is working while copies land', (
+    tester,
+  ) async {
+    // What the sheet was missing. The add row greys out during a pick and the
+    // remove discs go dead, and nothing anywhere said why, so the app looked
+    // idle while it was copying and Save was the natural next tap.
+    await openSheet(tester, await pulagId());
+
+    await startHeldPick(tester, <String>['a.jpg']);
+
+    expect(find.text(ClimbPhotoField.workingMessage), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ClimbPhotoField),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsOneWidget,
+    );
+
+    store.letEverythingThrough();
+    await pumpRealUntil(
+      tester,
+      () => find.byType(ClimbPhoto).evaluate().length == 1,
+      waitingFor: 'the copy to land',
+    );
+
+    expect(find.text(ClimbPhotoField.workingMessage), findsNothing);
+
+    await disposeApp(tester);
+    await letCleanupFinish(tester);
+  });
+
+  testWidgets('a thumbnail arrives with each copy, not all at the end', (
+    tester,
+  ) async {
+    await openSheet(tester, await pulagId());
+
+    await startHeldPick(tester, <String>['a.jpg', 'b.jpg', 'c.jpg']);
+    expect(find.byType(ClimbPhoto), findsNothing);
+
+    // Two thumbnails while a third copy is still parked. Publishing one batch at
+    // the end leaves the row empty for the whole pick, which is what this
+    // catches.
+    for (final int landed in <int>[1, 2]) {
+      store.letOneThrough();
+      await pumpRealUntil(
+        tester,
+        () => store.waiting == 1,
+        waitingFor: 'copy ${landed + 1} to be parked',
+      );
+      expect(
+        find.byType(ClimbPhoto),
+        findsNWidgets(landed),
+        reason: '$landed of three copies have landed',
+      );
+      expect(find.text(ClimbPhotoField.workingMessage), findsOneWidget);
+    }
+
+    store.letOneThrough();
+    await pumpRealUntil(
+      tester,
+      () => find.text(ClimbPhotoField.workingMessage).evaluate().isEmpty,
+      waitingFor: 'the last copy to land',
+    );
+    expect(find.byType(ClimbPhoto), findsNWidgets(3));
+
+    await disposeApp(tester);
+    await letCleanupFinish(tester);
+  });
+
+  testWidgets('the save button shows busy while photos are still copying', (
+    tester,
+  ) async {
+    // So the tap the save now waits out is not wanted in the first place.
+    await openSheet(tester, await pulagId());
+    expect(saveButton(tester).busy, isFalse);
+
+    await startHeldPick(tester, <String>['a.jpg']);
+    expect(saveButton(tester).busy, isTrue);
+
+    store.letEverythingThrough();
+    await pumpRealUntil(
+      tester,
+      () => find.byType(ClimbPhoto).evaluate().length == 1,
+      waitingFor: 'the copy to land',
+    );
+    expect(saveButton(tester).busy, isFalse);
+
+    await disposeApp(tester);
+    await letCleanupFinish(tester);
+  });
+
+  testWidgets('a pick that starts as the save does leaves nothing behind', (
+    tester,
+  ) async {
+    // The other side of waiting. The photo row greys out one frame after the
+    // save starts, so a pick can still get in, and its copy lands after the row
+    // has been written with the photos that were there. Nothing can ever point
+    // at that file, so it goes when the sheet does.
+    await openSheet(tester, await pulagId());
+    await addPhotos(tester, <String>['a.jpg']);
+
+    store.holdCopies();
+    picker.paths = <String>[writePickedFile(picked, 'late.jpg').path];
+
+    await tester.tap(find.text('Save climb'));
+    await tester.tap(find.text(ClimbPhotoField.addLabel));
+
+    await waitForTheSave(tester);
+    final Climb saved = (await climbs.getAll()).single;
+    expect(saved.photoFilenames, hasLength(1));
+
+    // The sheet leaves while the second copy is still parked.
+    await tester.pumpAndSettle();
+    expect(find.byType(MarkClimbedSheet), findsNothing);
+
+    store.letEverythingThrough();
+    await pumpRealUntil(
+      tester,
+      () => filesOnDisk().length == 1,
+      waitingFor: 'the late copy to be cleared up',
+    );
+    expect(filesOnDisk(), saved.photoFilenames);
 
     await disposeApp(tester);
   });

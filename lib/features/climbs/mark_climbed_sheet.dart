@@ -117,8 +117,14 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     final NavigatorState navigator = Navigator.of(context);
 
     final ClimbPhotoDraft photos = ref.read(climbPhotoDraftProvider.notifier);
-    final List<String> photoFilenames =
-        ref.read(climbPhotoDraftProvider).valueOrNull ?? const <String>[];
+
+    // Waited for, never read off the provider. A pick that is still copying has
+    // published the photos that have landed so far, so reading here wrote the
+    // climb with some of them and, on a first pick, with none. The button is
+    // already showing busy while copies run, and this is for the tap that got
+    // in during the frame before it.
+    final List<String> photoFilenames = await photos.settled();
+    if (!mounted) return;
 
     final ClimbLogged? saved = await ref
         .read(markClimbedControllerProvider.notifier)
@@ -138,10 +144,11 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     }
 
     // Before the pop, and only on a save that landed. Popping disposes the
-    // draft, and a draft that was never kept deletes its copies on the way out,
-    // which is right for a sheet that was abandoned and would be data loss one
-    // line later than this.
-    photos.keep();
+    // draft, and the draft deletes every copy the row does not name on the way
+    // out, which is right for a sheet that was abandoned and would be data loss
+    // one line later than this. The names are what is handed over rather than a
+    // flag, so a photo that landed after the row was written goes with it.
+    photos.keep(photoFilenames);
 
     navigator.pop();
 
@@ -164,6 +171,12 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     final text = context.cairnText;
     final colors = context.cairnColors;
     final bool saving = ref.watch(markClimbedControllerProvider).isLoading;
+
+    // The draft publishes each copy as it lands and stays loading until the last
+    // one has, so this is on for exactly as long as photos are being copied in.
+    // The button shows it, which is what stops the tap that [_save] otherwise
+    // has to wait out.
+    final bool copying = ref.watch(climbPhotoDraftProvider).isLoading;
 
     return Padding(
       // Lifts the sheet off the keyboard, so the field being typed into stays
@@ -235,7 +248,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
               CairnButton(
                 label: 'Save climb',
                 glyph: const Icon(Icons.check_rounded),
-                busy: saving,
+                busy: saving || copying,
                 onPressed: _save,
               ),
             ],

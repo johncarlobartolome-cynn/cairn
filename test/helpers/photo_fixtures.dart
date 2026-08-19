@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -43,6 +44,37 @@ Future<void> pumpRealAsync(WidgetTester tester, {int rounds = 24}) async {
     }
   });
   await tester.pump();
+}
+
+/// Pumps on the real clock until [ready] says the work is done.
+///
+/// One copy is half a dozen trips to the disk, so a fixed number of rounds is a
+/// guess that goes stale the moment a test picks one more photo. This waits for
+/// the thing the test is about instead, and gives up rather than hanging so a
+/// fix that never lands fails with a sentence rather than a timeout.
+///
+/// [ready] may be asynchronous, which is what lets a test wait on the row
+/// reaching the database rather than on a widget going away.
+Future<void> pumpRealUntil(
+  WidgetTester tester,
+  FutureOr<bool> Function() ready, {
+  required String waitingFor,
+  int giveUpAfter = 200,
+}) async {
+  // Pumped before it is asked, always. A state change made by the tap that came
+  // just before this is not on screen until a frame has run, so a first check
+  // ahead of the first pump would read the tree as it was.
+  for (var round = 0; round < giveUpAfter; round++) {
+    await pumpRealAsync(tester, rounds: 2);
+    if (await ready()) {
+      // One more frame before handing back. The turn that satisfied the
+      // condition is usually the turn that changed the state as well, and the
+      // frame carrying it has not been built yet.
+      await pumpRealAsync(tester, rounds: 1);
+      return;
+    }
+  }
+  fail('gave up waiting for $waitingFor');
 }
 
 /// A file where the system picker would have left one.
@@ -144,3 +176,63 @@ class FakePhotoPicker implements PhotoPicker {
     return paths;
   }
 }
+
+/// A [PhotoStore] whose copies land when the test says so.
+///
+/// A copy is over in a millisecond, and the window it is open in is the one the
+/// sheet used to get wrong, so a test cannot hope to catch it by racing. It
+/// holds the copy still instead: [holdCopies] parks every copy from then on,
+/// [letOneThrough] lets exactly one land, and the test looks at the sheet in
+/// between.
+///
+/// Open by default, so a store built here and never held behaves like the real
+/// one.
+class HeldPhotoStore extends PhotoStore {
+  HeldPhotoStore(Directory documents)
+    : super(directory: (() async => documents));
+
+  /// One per copy waiting to be let through, oldest first.
+  final List<Completer<void>> _waiting = <Completer<void>>[];
+
+  bool _holding = false;
+
+  /// Copies wait from here on, rather than going straight to disk.
+  void holdCopies() => _holding = true;
+
+  /// How many copies are parked right now.
+  ///
+  /// The draft copies one file at a time, so this is 1 while a pick is running
+  /// and 0 between picks. A test asserts on it to say the copy really had not
+  /// finished yet, rather than assuming.
+  int get waiting => _waiting.length;
+
+  /// Lets the copy that is waiting land, and leaves the rest parked.
+  void letOneThrough() {
+    if (_waiting.isEmpty) return;
+    _waiting.removeAt(0).complete();
+  }
+
+  /// Lets every copy land: the ones parked now and the ones still to come.
+  void letEverythingThrough() {
+    _holding = false;
+    final List<Completer<void>> parked = List<Completer<void>>.of(_waiting);
+    _waiting.clear();
+    for (final Completer<void> gate in parked) {
+      if (!gate.isCompleted) gate.complete();
+    }
+  }
+
+  @override
+  Future<String> copyIn(String sourcePath) async {
+    if (_holding) {
+      final Completer<void> gate = Completer<void>();
+      _waiting.add(gate);
+      await gate.future;
+    }
+    return super.copyIn(sourcePath);
+  }
+}
+
+/// Points the photo store at [store], so a test controls when copies land.
+Override photoStoreOverride(PhotoStore store) =>
+    photoStoreProvider.overrideWithValue(store);

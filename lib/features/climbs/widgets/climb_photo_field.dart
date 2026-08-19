@@ -31,9 +31,20 @@ class ClimbPhotoField extends ConsumerWidget {
 
   static const String addLabel = 'Add photos';
 
+  /// Said while copies are still landing, beside a spinner.
+  ///
+  /// The add row greys out for as long as a pick is copying, and a greyed-out
+  /// row on its own reads as an app doing nothing, which is what made tapping
+  /// Save next feel like the obvious move. Present tense, and no ellipsis: a
+  /// person holding the phone would say the app is adding their photos.
+  static const String workingMessage = 'Adding photos';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<String>> draft = ref.watch(climbPhotoDraftProvider);
+    // Loading carries the photos that have landed so far, so both of these are
+    // true at once while a pick is copying: there are thumbnails to draw and
+    // more are still coming.
     final List<String> filenames = draft.valueOrNull ?? const <String>[];
     final bool working = draft.isLoading;
 
@@ -69,6 +80,11 @@ class ClimbPhotoField extends ConsumerWidget {
               : null,
         ),
 
+        if (working) ...[
+          const SizedBox(height: CairnSpace.x12),
+          const _Working(),
+        ],
+
         if (draft.hasError) ...[
           const SizedBox(height: CairnSpace.x8),
           Text(
@@ -81,6 +97,33 @@ class ClimbPhotoField extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// The quiet line that says copies are still landing.
+///
+/// A spinner at body-icon size and one line of meta text, which is the weight
+/// the sheet already uses for the peak's name under its title. It is the only
+/// thing on the sheet that moves while a pick copies, and that is the point: the
+/// app used to look idle while it was busy.
+class _Working extends StatelessWidget {
+  const _Working();
+
+  /// The same stroke the save button's spinner uses, so the two read as one
+  /// thing happening rather than as two different waits.
+  static const double _stroke = 2;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const SizedBox(
+        width: CairnSize.icon,
+        height: CairnSize.icon,
+        child: CircularProgressIndicator(strokeWidth: _stroke),
+      ),
+      const SizedBox(width: CairnSpace.x8),
+      Text(ClimbPhotoField.workingMessage, style: context.cairnText.meta),
+    ],
+  );
 }
 
 /// One attached photo, with the way to take it off again.
