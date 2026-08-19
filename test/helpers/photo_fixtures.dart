@@ -217,6 +217,16 @@ class HeldPhotoStore extends PhotoStore {
   /// Copies wait from here on, rather than going straight to disk.
   void holdCopies() => _holding = true;
 
+  /// How many copies have finished, gate and disk write and all.
+  ///
+  /// A test that wants to prove what happens to a copy after it lands has to
+  /// know it landed. Counting the files is not that: the file appears part way
+  /// through a copy under a name starting with a dot, and a copy that is deleted
+  /// the moment it lands leaves no trace to count at all.
+  int get landed => _landed;
+
+  int _landed = 0;
+
   /// How many copies are parked right now.
   ///
   /// The draft copies one file at a time, so this is 1 while a pick is running
@@ -247,7 +257,9 @@ class HeldPhotoStore extends PhotoStore {
       _waiting.add(gate);
       await gate.future;
     }
-    return super.copyIn(sourcePath);
+    final String filename = await super.copyIn(sourcePath);
+    _landed++;
+    return filename;
   }
 }
 

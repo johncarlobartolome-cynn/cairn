@@ -100,6 +100,12 @@ void main() {
       entity.path.split(Platform.pathSeparator).last,
   ]..sort();
 
+  /// The stored photos, ignoring the half-written file a copy builds beside the
+  /// name it is claiming. That one starts with a dot and is gone as soon as the
+  /// copy is whole, so counting it would make a test pass mid-write.
+  List<String> photosOnDisk() =>
+      filesOnDisk().where((String name) => !name.startsWith('.')).toList();
+
   /// The sheet's own save button. Peak detail has one behind it, so the finder
   /// has to say which of the two it means.
   CairnButton saveButton(WidgetTester tester) => tester.widget<CairnButton>(
@@ -636,19 +642,30 @@ void main() {
 
     await waitForTheSave(tester);
     final Climb saved = (await climbs.getAll()).single;
-    expect(saved.photoFilenames, hasLength(1));
+    expect(
+      saved.photoFilenames,
+      hasLength(1),
+      reason: 'the row holds what was attached when the save started',
+    );
 
-    // The sheet leaves while the second copy is still parked.
+    // The sheet leaves with that second copy still parked.
     await tester.pumpAndSettle();
     expect(find.byType(MarkClimbedSheet), findsNothing);
 
+    // So it lands with the sheet gone, the row written, and nothing anywhere
+    // able to point at it. It clears up after itself.
     store.letEverythingThrough();
     await pumpRealUntil(
       tester,
-      () => filesOnDisk().length == 1,
+      () => store.landed == 2,
+      waitingFor: 'the late copy to land',
+    );
+    await pumpRealUntil(
+      tester,
+      () => photosOnDisk().length == 1,
       waitingFor: 'the late copy to be cleared up',
     );
-    expect(filesOnDisk(), saved.photoFilenames);
+    expect(photosOnDisk(), saved.photoFilenames);
 
     await disposeApp(tester);
   });
