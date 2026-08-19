@@ -181,6 +181,7 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
   /// failure. A copy that fails part way keeps the photos that did land: half
   /// the photos is a better answer than none of them, and the message says
   /// something went wrong either way.
+  ///
   /// Each copy is published as it lands rather than all of them at the end, so
   /// a thumbnail appears per photo and the row can keep saying it is working.
   /// The alternative was one publish at the end, which left the sheet looking
