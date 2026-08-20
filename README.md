@@ -75,7 +75,7 @@ It wants a climb already logged on the device, and it says so if there is none.
 
 | | |
 |---|---|
-| Tests | 528, against 62 source files |
+| Tests | 594, against 62 source files |
 | Cold start | 253 ms on the phone it was built for, an Infinix on Android 15 |
 | Release APK | 21.5 MB for the arm64 split. The fat APK is 62.1 MB |
 | Network calls | None |
