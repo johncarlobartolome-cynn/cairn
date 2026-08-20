@@ -105,6 +105,76 @@ class MarkClimbedController extends AsyncNotifier<void> {
   }
 }
 
+/// The write path for an edit to a climb that is already in the log.
+///
+/// Separate from [markClimbedControllerProvider] because the two writes answer
+/// different questions and say different things. A save can earn badges and has
+/// to name them; an edit cannot earn one, so it has nothing to hand back but
+/// whether it landed. One controller doing both would carry the insert's return
+/// type through a path that never fills it in.
+///
+/// Not auto-disposed, for the reason the save controller is not: the sheet can
+/// be swiped away while a write is in flight.
+final editClimbControllerProvider =
+    AsyncNotifierProvider<EditClimbController, void>(EditClimbController.new);
+
+/// Rewrites one climb.
+///
+/// The counterpart of [MarkClimbedController], and deliberately the plainer of
+/// the two. It writes four fields and reports whether a row moved.
+///
+/// **The state does not refuse a second tap**, exactly as the save controller's
+/// does not. A widget reads this through a rebuild, so the button starts
+/// ignoring presses one frame late, and one frame is long enough for a thumb.
+/// The guard is a synchronous flag in `mark_climbed_sheet.dart`.
+class EditClimbController extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  /// Writes the edit and says whether it landed.
+  ///
+  /// **False covers both ways it can fail**, and they are the same thing to the
+  /// person holding the phone. The write threw, or it found no row to change
+  /// because the climb is gone. Either way the sheet stays open with everything
+  /// still in it and says the changes did not save.
+  ///
+  /// [date] is a calendar day, and stays one through an edit: the column's
+  /// converter drops whatever clock time rides along on the [DateTime] the
+  /// picker handed back.
+  ///
+  /// Blank [companions] and [notes] store as null, the same as on a first save,
+  /// so a field somebody cleared reads back as absent rather than as an empty
+  /// line on climb detail.
+  ///
+  /// No badge is unlocked or reported. See [ClimbDao.updateClimb] for why an
+  /// edit cannot earn one.
+  Future<bool> save({
+    required int id,
+    required DateTime date,
+    String? companions,
+    String? notes,
+    List<String> photoFilenames = const <String>[],
+  }) async {
+    state = const AsyncValue<void>.loading();
+    try {
+      final bool changed = await ref
+          .read(climbDaoProvider)
+          .updateClimb(
+            id: id,
+            date: date,
+            companions: _filled(companions),
+            notes: _filled(notes),
+            photoFilenames: photoFilenames,
+          );
+      state = const AsyncValue<void>.data(null);
+      return changed;
+    } catch (error, stackTrace) {
+      state = AsyncValue<void>.error(error, stackTrace);
+      return false;
+    }
+  }
+}
+
 /// The text of a field someone actually filled in, or null.
 String? _filled(String? value) {
   final trimmed = value?.trim() ?? '';
@@ -144,7 +214,30 @@ final climbPhotoDraftProvider =
 /// and only grew at the end, so for the length of a pick the published answer
 /// was a lie. Everything a save reads now grows as each copy lands, and a save
 /// that arrives mid-pick waits for the rest through [settled].
+///
+/// **On an edit the draft starts from the row's own photos**, seeded through
+/// [climbPhotoDraftSeedProvider]. Those files are not this sheet's to delete, so
+/// the bookkeeping splits in two: a photo this sheet copied goes the moment it
+/// is taken off, and a photo the climb arrived with goes only once the edit is
+/// saved. An edit that is cancelled leaves every photograph where it was.
 class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
+  /// [existing] are the photos the climb being edited already holds.
+  ///
+  /// Empty for a new climb, which is every caller but one: the sheet's edit path
+  /// overrides [climbPhotoDraftProvider] inside a scope of its own with a draft
+  /// built this way, so the row's photographs are on the sheet before anything
+  /// draws.
+  ///
+  /// **Handed to the notifier rather than called in after the fact.** The draft
+  /// is auto-disposed, so a notifier read from a widget's `initState` with
+  /// nobody listening yet can be thrown away before the first build, and a seed
+  /// pushed into it would go with it. Arriving through the constructor cannot
+  /// lose that race: a draft made again is made with the same photos.
+  ClimbPhotoDraft({List<String> existing = const <String>[]})
+    : _seed = existing;
+
+  final List<String> _seed;
+
   /// Held rather than looked up on demand, because the cleanup below runs while
   /// this provider is being disposed and `ref` is closed by then.
   late PhotoStore _store;
@@ -165,6 +258,27 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
   /// not in here is litter, and the sheet clears it up on the way out.
   final Set<String> _kept = <String>{};
 
+  /// The photos the climb being edited arrived with.
+  ///
+  /// **These are not this sheet's files.** A climb row names them, so an edit
+  /// that is abandoned has to leave every one of them exactly where it is. They
+  /// go into [_kept] the moment they are adopted, which is what makes the
+  /// cleanup on the way out step over them.
+  final Set<String> _existing = <String>{};
+
+  /// Photos the row still names that the user has taken off the sheet.
+  ///
+  /// Held rather than deleted. Taking a photo off an edit is a decision about a
+  /// climb that already exists, so the file goes when the edit is saved and
+  /// never before: a cancelled edit has to leave the climb exactly as it was,
+  /// photographs included. This is the whole of what T30's cleanup could not do,
+  /// because it was written for a row that did not exist yet.
+  final Set<String> _dropped = <String>{};
+
+  /// True once a seed has been taken, so a rebuild cannot pull the photos the
+  /// user has since removed back onto the sheet.
+  bool _adopted = false;
+
   /// Set the moment the sheet is gone. A copy already in the air cannot be
   /// called back, so it checks this when it lands.
   bool _gone = false;
@@ -173,7 +287,23 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
   FutureOr<List<String>> build() {
     _store = ref.read(photoStoreProvider);
     ref.onDispose(_dropUnkept);
+    _adopt(_seed);
     return _snapshot();
+  }
+
+  /// Starts the draft from the photos a climb already holds.
+  ///
+  /// Once only. They are recorded as kept in the same breath, because the
+  /// cleanup that runs when this sheet goes deletes what the sheet is holding
+  /// and nobody is keeping, and these belong to a row rather than to the sheet.
+  void _adopt(List<String> existing) {
+    if (_adopted) return;
+    _adopted = true;
+    if (existing.isEmpty) return;
+
+    _filenames.addAll(existing);
+    _existing.addAll(existing);
+    _kept.addAll(existing);
   }
 
   /// Every publish reaches the sheet, including one loading state after another.
@@ -291,13 +421,27 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
     return _snapshot();
   }
 
-  /// Drops one photo from the sheet and deletes the copy.
+  /// Drops one photo from the sheet.
   ///
-  /// Safe to delete outright: no row points at it yet, so nothing else can be
-  /// showing it.
+  /// **Whether the file goes with it depends on whose file it is.** One this
+  /// sheet copied has no row pointing at it, so it is deleted here and nothing
+  /// can be left showing it. One the climb arrived with is still on a saved
+  /// climb until the edit lands, so it is only remembered here and deleted by
+  /// [keep]. Delete it now and a cancelled edit would have taken a photograph
+  /// off a climb it never changed.
   Future<void> remove(String filename) async {
     if (!_filenames.remove(filename)) return;
     state = AsyncValue<List<String>>.data(_snapshot());
+
+    if (_existing.contains(filename)) {
+      // Out of [_kept] as well, or [keep] would spare it: adoption put every
+      // photo the row arrived with in there, and this one is on its way out.
+      // Nothing on the cancel path reads [_kept] for a photo already off the
+      // sheet, so this cannot cost a file an abandoned edit has to leave alone.
+      _kept.remove(filename);
+      _dropped.add(filename);
+      return;
+    }
     await _store.removeAll(<String>[filename]);
   }
 
@@ -311,7 +455,26 @@ class ClimbPhotoDraft extends AutoDisposeAsyncNotifier<List<String>> {
   /// what the row names is kept and anything else this sheet copied is deleted.
   /// A photo picked in the instant the save started is exactly that, since the
   /// row was written before its copy landed.
-  void keep(Iterable<String> filenames) => _kept.addAll(filenames);
+  ///
+  /// **This is also the moment a photo taken off an edit is deleted**, and the
+  /// earliest one there is. Until the write came back the row still named it.
+  /// Anything the row now holds is spared even if it was dropped and picked
+  /// again, since the names are what decide rather than the order of the taps.
+  ///
+  /// The deletion is not waited for, the same as the cleanup on the way out.
+  /// Nothing on screen is waiting for a file to go, and the sheet is closing.
+  void keep(Iterable<String> filenames) {
+    _kept.addAll(filenames);
+
+    final List<String> gone = <String>[
+      for (final String filename in _dropped)
+        if (!_kept.contains(filename)) filename,
+    ];
+    _dropped.clear();
+    if (gone.isEmpty) return;
+
+    unawaited(_store.removeAll(gone));
+  }
 
   List<String> _snapshot() => List<String>.unmodifiable(_filenames);
 

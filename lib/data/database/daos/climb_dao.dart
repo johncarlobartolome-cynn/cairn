@@ -143,6 +143,54 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 
+  /// Rewrites one climb's own fields, and says whether a row changed.
+  ///
+  /// The gap this closes: a climb saved on a trail with no signal used to be
+  /// final. Somebody logs the day, walks out, and the companions, the notes and
+  /// the photographs are all things they meant to add at home. There was no way
+  /// to add them.
+  ///
+  /// **Every field is written, including the empty ones.** An edit is the whole
+  /// of what the climb now says, so a note the user deleted has to arrive here
+  /// as null and land as null. A patch API that skipped absent fields could not
+  /// clear one, and clearing one is a thing people do.
+  ///
+  /// **[mountainId] is not among them, on purpose.** A climb belongs to the peak
+  /// it was logged against. Moving one to another peak is a different operation
+  /// with its own consequences, since which peaks have climbs is what the badges
+  /// are counted from, and nothing in the app asks for it.
+  ///
+  /// **No badge unlocks here, and none can.** Every badge is a function of which
+  /// peaks have a climb against them, and an edit cannot change that: the row
+  /// keeps its peak, and it was already counted when it was first saved. So this
+  /// is a plain write rather than a transaction, and the caller has nothing to
+  /// announce.
+  ///
+  /// False means nothing changed, which is a climb that is no longer in the log.
+  /// The screen that asked was showing it a moment ago, so the honest answer is
+  /// to say the edit did not save rather than to pretend it did.
+  ///
+  /// [photoFilenames] are bare filenames, same as [logClimb]. The column's
+  /// converter refuses a path, so an edit that skipped the copy fails here.
+  Future<bool> updateClimb({
+    required int id,
+    required DateTime date,
+    String? companions,
+    String? notes,
+    List<String> photoFilenames = const <String>[],
+  }) async {
+    final int changed = await (update(_climbs)..where((c) => c.id.equals(id)))
+        .write(
+          ClimbsCompanion(
+            date: Value(date),
+            companions: Value(companions),
+            notes: Value(notes),
+            photoFilenames: Value(photoFilenames),
+          ),
+        );
+    return changed > 0;
+  }
+
   Future<int> removeById(int id) =>
       (delete(_climbs)..where((c) => c.id.equals(id))).go();
 }

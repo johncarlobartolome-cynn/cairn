@@ -328,6 +328,122 @@ void main() {
     });
   });
 
+  /// The draft as the edit path builds it: starting from the photos a climb
+  /// already holds.
+  ///
+  /// **These files are not the sheet's**, and that is the whole of what changes.
+  /// T30's cleanup was written for a row that did not exist yet, so it deletes a
+  /// copy the moment it is taken off. Do that on a climb already in the log and
+  /// an edit somebody abandoned has taken a photograph with it.
+  group('on a climb that already has photos', () {
+    late ProviderContainer edit;
+    late List<String> existing;
+
+    setUp(() {
+      existing = <String>[
+        'climb_1755300000000001_a1b2c3d4.jpg',
+        'climb_1755300000000002_e5f6a7b8.jpg',
+      ];
+      for (final String name in existing) {
+        writePickedFile(documents, name);
+      }
+      edit = ProviderContainer(
+        overrides: <Override>[
+          documentsDirectoryOverride(documents),
+          photoPickerProvider.overrideWithValue(picker),
+          photoStoreOverride(store),
+          climbPhotoDraftProvider.overrideWith(
+            () => ClimbPhotoDraft(existing: existing),
+          ),
+        ],
+      );
+      addTearDown(edit.dispose);
+    });
+
+    ProviderSubscription<AsyncValue<List<String>>> openEdit() {
+      final sub = edit.listen<AsyncValue<List<String>>>(
+        climbPhotoDraftProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      addTearDown(sub.close);
+      return sub;
+    }
+
+    ClimbPhotoDraft editDraft() => edit.read(climbPhotoDraftProvider.notifier);
+
+    List<String> editAttached() =>
+        edit.read(climbPhotoDraftProvider).valueOrNull ?? const <String>[];
+
+    test('starts from the photos the climb already holds', () {
+      openEdit();
+
+      expect(editAttached(), existing);
+      expect(filesOnDisk(), existing.toList()..sort());
+    });
+
+    test('a photo taken off is kept on disk until the edit is saved', () async {
+      openEdit();
+
+      await editDraft().remove(existing.first);
+
+      expect(editAttached(), <String>[existing.last]);
+      expect(
+        filesOnDisk(),
+        existing.toList()..sort(),
+        reason: 'the climb still names it, so the file cannot go yet',
+      );
+    });
+
+    test('and goes the moment the edit is saved', () async {
+      openEdit();
+      await editDraft().remove(existing.first);
+
+      editDraft().keep(editAttached());
+      await waitUntil(
+        () => filesOnDisk().length == 1,
+        waitingFor: 'the photo the edit dropped to be deleted',
+      );
+
+      expect(filesOnDisk(), <String>[existing.last]);
+    });
+
+    test('a cancelled edit leaves every photograph where it was', () async {
+      // The one that would have cost a photograph. Everything is changed and
+      // then thrown away: one of the climb's own photos taken off, another
+      // picked, and the sheet closed without saving.
+      final sub = openEdit();
+      await editDraft().remove(existing.first);
+
+      picker.paths = <String>[writePickedFile(picked, 'late.jpg').path];
+      await editDraft().addFromPicker();
+      expect(filesOnDisk(), hasLength(3));
+
+      sub.close();
+      await waitUntil(
+        () => filesOnDisk().length == 2,
+        waitingFor: 'the copy nobody saved to be cleared up',
+      );
+
+      expect(filesOnDisk(), existing.toList()..sort());
+    });
+
+    test('a photo picked during an edit is kept once it is saved', () async {
+      final sub = openEdit();
+      picker.paths = <String>[writePickedFile(picked, 'new.jpg').path];
+      await editDraft().addFromPicker();
+
+      final List<String> saved = editAttached();
+      expect(saved, hasLength(3));
+
+      editDraft().keep(saved);
+      sub.close();
+      await pumpEventQueue();
+
+      expect(filesOnDisk(), saved.toList()..sort());
+    });
+  });
+
   test('a photo the saved row does not name goes with the sheet', () async {
     // The pick that got in as the save started. The row was written before this
     // copy landed, so the row does not name it and nothing ever will.
