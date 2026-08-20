@@ -15,7 +15,7 @@ import '../../../shared/extensions/theme_context.dart';
 /// hold. A line about photographs on a climb that has none would be the app
 /// warning about something that is not there, and somebody who reads one warning
 /// that does not apply stops reading the next one.
-class DeleteClimbDialog extends StatelessWidget {
+class DeleteClimbDialog extends StatefulWidget {
   const DeleteClimbDialog({
     required this.photoCount,
     required this.onlyClimbOfPeak,
@@ -93,14 +93,42 @@ class DeleteClimbDialog extends StatelessWidget {
   }
 
   @override
+  State<DeleteClimbDialog> createState() => _DeleteClimbDialogState();
+}
+
+class _DeleteClimbDialogState extends State<DeleteClimbDialog> {
+  /// True from the moment either button is accepted.
+  ///
+  /// The guard against a second tap, and the same shape as the one on the
+  /// control that opened this: a plain field, read and written with no await
+  /// between them. Two taps on one of these buttons inside a single frame both
+  /// reach the handler, and each one pops a route. The first pops this dialog;
+  /// the second would pop the screen underneath it, so tapping Cancel twice
+  /// would throw somebody off the climb they just decided to keep.
+  ///
+  /// A disabled button cannot do this job, because it travels through a rebuild
+  /// and starts refusing presses one frame late.
+  bool _answered = false;
+
+  void _answer(bool confirmed) {
+    // First line, and nothing above it awaits.
+    if (_answered) return;
+    _answered = true;
+    Navigator.of(context).pop(confirmed);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = context.cairnColors;
     final text = context.cairnText;
 
     return AlertDialog(
-      title: Text(title, style: text.screenTitle),
+      title: Text(DeleteClimbDialog.title, style: text.screenTitle),
       content: Text(
-        message(photoCount: photoCount, onlyClimbOfPeak: onlyClimbOfPeak),
+        DeleteClimbDialog.message(
+          photoCount: widget.photoCount,
+          onlyClimbOfPeak: widget.onlyClimbOfPeak,
+        ),
         style: text.body,
       ),
       shape: const RoundedRectangleBorder(
@@ -108,13 +136,13 @@ class DeleteClimbDialog extends StatelessWidget {
       ),
       actions: <Widget>[
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text(cancelLabel),
+          onPressed: () => _answer(false),
+          child: const Text(DeleteClimbDialog.cancelLabel),
         ),
         TextButton(
-          onPressed: () => Navigator.of(context).pop(true),
+          onPressed: () => _answer(true),
           style: TextButton.styleFrom(foregroundColor: colors.error),
-          child: const Text(confirmLabel),
+          child: const Text(DeleteClimbDialog.confirmLabel),
         ),
       ],
     );

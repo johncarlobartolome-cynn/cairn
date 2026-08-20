@@ -12,6 +12,7 @@ import 'package:cairn/features/climbs/widgets/delete_climb_action.dart';
 import 'package:cairn/features/climbs/widgets/delete_climb_dialog.dart';
 import 'package:cairn/features/peaks/peak_detail_screen.dart';
 import 'package:cairn/shared/widgets/peak_card.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -134,6 +135,27 @@ void main() {
     await tester.tap(find.text(DeleteClimbDialog.confirmLabel));
     await tester.pumpAndSettle();
     await pumpRealAsync(tester);
+  }
+
+  /// The button behind [label], so a test can reach its handler.
+  Finder buttonSaying(String label) =>
+      find.ancestor(of: find.text(label), matching: find.byType(TextButton));
+
+  /// Two taps inside one frame, which is the only thing the guards are for.
+  ///
+  /// **`tester.tap` twice with no pump between them is not this**, and finding
+  /// that out is what made these two tests worth writing. Enough runs inside the
+  /// second `tap` call for the dialog the first tap opened to already be over the
+  /// control, so the second tap lands on the modal barrier. That version stayed
+  /// green with the guard taken out, which is a test proving nothing.
+  ///
+  /// Calling the handler twice with nothing in between is what two pointer-up
+  /// events in one input batch do on a phone, and it is the window a thumb can
+  /// actually hit.
+  void tapTwiceInOneFrame(WidgetTester tester, Finder button) {
+    final VoidCallback press = tester.widget<TextButton>(button).onPressed!;
+    press();
+    press();
   }
 
   Future<void> cancelDelete(WidgetTester tester) async {
@@ -546,15 +568,12 @@ void main() {
     await tester.ensureVisible(deleteControl());
     await tester.pumpAndSettle();
 
-    // No pump between the two, and that gap is the whole test. Aimed at one
-    // recorded pixel rather than re-found each time, because that is what a
-    // thumb does and because the finder would otherwise be asked where the
-    // control is after the first tap has already put a dialog over it.
-    final Offset spot = tester.getCenter(deleteControl());
-    await tester.tapAt(spot);
-    await tester.tapAt(spot);
+    tapTwiceInOneFrame(tester, buttonSaying(DeleteClimbAction.label));
     await tester.pumpAndSettle();
 
+    // Two dialogs, one hidden behind the other, is what happens without the
+    // flag. Confirming both would run two deletes, and the second would find no
+    // row and tell somebody their climb did not delete a moment after it did.
     expect(find.byType(DeleteClimbDialog), findsOneWidget);
 
     await cancelDelete(tester);
@@ -581,13 +600,10 @@ void main() {
     );
     await tapDelete(tester);
 
-    // Two taps on the destructive button itself, at one recorded pixel, with no
-    // pump between them.
-    final Offset spot = tester.getCenter(
-      find.text(DeleteClimbDialog.confirmLabel),
-    );
-    await tester.tapAt(spot);
-    await tester.tapAt(spot);
+    // Two taps on the destructive button itself, inside one frame. Each one pops
+    // a route: the first pops the dialog, and without the guard the second pops
+    // climb detail out from under the delete that is still running.
+    tapTwiceInOneFrame(tester, buttonSaying(DeleteClimbDialog.confirmLabel));
 
     await pumpRealUntil(
       tester,
@@ -595,6 +611,18 @@ void main() {
       waitingFor: 'the delete to be parked',
     );
     await pumpRealAsync(tester);
+    // Lets the dialog finish leaving. It is mid-pop while the write is parked,
+    // and a route still animating out is still in the tree.
+    await tester.pumpAndSettle();
+
+    // The write is held, so nothing has navigated yet. The dialog is gone and
+    // the screen that started the delete is still standing.
+    expect(find.byType(DeleteClimbDialog), findsNothing);
+    expect(
+      find.byType(ClimbDetailScreen),
+      findsOneWidget,
+      reason: 'the second tap took the screen under the dialog with it',
+    );
 
     // Read while the write is held, asserted after it has been let go. An
     // expectation that failed with a write still parked would leave a delete
