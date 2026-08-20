@@ -30,8 +30,12 @@ abstract final class CairnTheme {
   /// to `ColorScheme.surface`, which is white here, so a white pane would show
   /// between two cream pages for the length of every transition.
   ///
-  /// Android only. iOS has its own back-swipe grammar and this app does not ship
-  /// there, so overriding it would be a guess with nothing behind it.
+  /// Android only, and the gap is the decision. With no entry for iOS the
+  /// framework falls back to `CupertinoPageTransitionsBuilder`, which is what
+  /// carries the edge-drag pop an iPhone user reaches for without thinking. T36
+  /// dragged from the left edge on the simulator and watched peak detail slide
+  /// away under the thumb, so the default is already doing that work and naming
+  /// a builder here would take the gesture off.
   ///
   /// **Held as one instance per theme rather than built per call, and that is
   /// not a micro-optimisation.** `PageTransitionsTheme` compares its builders by

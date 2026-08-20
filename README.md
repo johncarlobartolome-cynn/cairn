@@ -2,7 +2,7 @@
 
 An offline hiking log for six Philippine peaks. Mark a peak climbed, keep the date, who you went with, notes and photos, and earn a badge for it.
 
-**Android only.** It has never been run on iOS.
+**Built and checked on Android.** It also builds and runs on the iOS simulator, where every screen has been walked in both themes. No iPhone has ever run it.
 
 ## What it does
 
@@ -60,6 +60,17 @@ Screenshots of every route in both themes, which needs a running Android emulato
 tool/screenshots.sh
 ```
 
+On an iOS simulator, drive the same target by hand. The script itself is Android-only because it picks its device through `adb`, but the Dart it runs is not:
+
+```
+flutter drive --device-id <simulator udid> \
+  --keep-app-running \
+  --driver test_driver/integration_test.dart \
+  --target integration_test/screenshot_test.dart
+```
+
+It wants a climb already logged on the device, and it says so if there is none.
+
 ## Numbers
 
 | | |
@@ -71,7 +82,7 @@ tool/screenshots.sh
 
 ## What it does not do
 
-- **No iOS.** The code has an iOS folder because Flutter made one. Nothing has ever been built or run there
+- **No iPhone has run it.** The simulator covers the screens, the storage, the fonts, the safe areas and the back swipe, and it cannot speak for a real device: battery, thermals, a photo library with thousands of images in it, HEIC files straight off a phone camera, and anything about shipping to the App Store are all untested
 - **Release builds sign with debug keys**, so no APK from this repo is fit to hand around
 - **Peak photography is deliberately missing.** Cards carry a placeholder mark for now. The desaturation treatment already runs through `ColorFiltered`, so photographs drop in without a code change
 - **No continuous integration.** The tests run on a machine, by hand

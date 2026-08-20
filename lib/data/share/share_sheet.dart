@@ -35,6 +35,15 @@ abstract interface class ShareSheet {
 /// `fileNameOverrides` is not decoration. `XFile.fromData` drops its `name` on
 /// every platform except web, so without the override the receiving app is
 /// offered a generated name instead of the peak's.
+///
+/// **iOS titles the sheet differently, and sending [message] is why.** T36
+/// watched it on the simulator: the header reads `Plain Text and 1 Document`
+/// rather than naming the picture, and there is no Save Image row. The PNG is
+/// still typed as an image, which Assign to Contact appearing proves, but iOS
+/// only offers Save Image when every item it was handed is an image, and this
+/// call hands over a line of text as well. Dropping the text would buy the Save
+/// Image row at the cost of every target that takes text only, so the payload
+/// stays as it is and the difference is written down instead.
 class SystemShareSheet implements ShareSheet {
   const SystemShareSheet();
 
