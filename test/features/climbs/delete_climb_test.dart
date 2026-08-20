@@ -372,6 +372,65 @@ void main() {
     await disposeApp(tester);
   });
 
+  testWidgets('lands on the peak even after losing the row underneath it', (
+    tester,
+  ) async {
+    // The window the navigation has to survive, and the reason it is not gated
+    // on `mounted`. The row goes before the photographs do, so the query behind
+    // climb detail can publish null and rebuild the screen into "Climb not
+    // found" while the delete is still finishing its file work. That takes the
+    // delete control with it, and a navigation that checked `mounted` would give
+    // up right there and park somebody on a not-found screen for a climb they
+    // deleted on purpose.
+    //
+    // The store holds its deletions still so the window can be looked at. It is
+    // a real window on a phone: deleting a dozen photographs is real disk work
+    // and frames keep running through it.
+    final String photo = storedPhoto('1755300000000001');
+    final int id = await logClimb(photoFilenames: <String>[photo]);
+    final _HeldPhotoDeletion store = _HeldPhotoDeletion(documents);
+    // Released whatever happens, including on a failed expectation below. A
+    // deletion left parked never answers, and the delete waiting on it would
+    // resume inside whichever test ran next.
+    addTearDown(store.letEverythingThrough);
+
+    await openClimb(
+      tester,
+      id,
+      overrides: <Override>[photoStoreOverride(store)],
+    );
+    await tapDelete(tester);
+    await tester.tap(find.text(DeleteClimbDialog.confirmLabel));
+
+    await pumpRealUntil(
+      tester,
+      () => find.text('Climb not found').evaluate().isNotEmpty,
+      waitingFor: 'the screen to notice its row is gone',
+    );
+    expect(
+      store.parked,
+      1,
+      reason: 'the delete is still running, which is what makes this a window',
+    );
+    expect(await climbIds(), isEmpty);
+
+    store.letEverythingThrough();
+    await pumpRealUntil(
+      tester,
+      () => find.byType(PeakDetailScreen).evaluate().isNotEmpty,
+      waitingFor: 'the peak to arrive',
+    );
+    // The old route is still on screen while it slides out, so the not-found
+    // screen is genuinely gone only once the transition has.
+    await tester.pumpAndSettle();
+
+    expect(find.text('Climb not found'), findsNothing);
+    expect(find.text(peakName), findsOneWidget);
+    expect(photosOnDisk(), isEmpty);
+
+    await disposeApp(tester);
+  });
+
   testWidgets('the last climb of a peak turns its card grey again', (
     tester,
   ) async {
@@ -646,6 +705,38 @@ void main() {
     await tester.pumpAndSettle();
     await disposeApp(tester);
   });
+}
+
+/// A photo store that holds its deletions until the test says so.
+///
+/// The real one is over in a millisecond, and the window it leaves open is the
+/// one the navigation has to survive, so a test cannot hope to catch it by
+/// racing. This holds it still instead.
+class _HeldPhotoDeletion extends PhotoStore {
+  _HeldPhotoDeletion(Directory documents)
+    : super(directory: (() async => documents));
+
+  final List<Completer<void>> _gates = <Completer<void>>[];
+
+  /// How many deletions are parked right now.
+  int get parked => _gates.length;
+
+  @override
+  Future<void> removeAll(Iterable<String> filenames) async {
+    final Completer<void> gate = Completer<void>();
+    _gates.add(gate);
+    await gate.future;
+    return super.removeAll(filenames);
+  }
+
+  /// Lets every deletion land: the ones parked now and the ones still to come.
+  void letEverythingThrough() {
+    final List<Completer<void>> waiting = List<Completer<void>>.of(_gates);
+    _gates.clear();
+    for (final Completer<void> gate in waiting) {
+      if (!gate.isCompleted) gate.complete();
+    }
+  }
 }
 
 /// The delete path with a valve and a switch on it.
