@@ -175,6 +175,78 @@ class EditClimbController extends AsyncNotifier<void> {
   }
 }
 
+/// The write path that takes a climb out of the log.
+///
+/// Separate from the other two for the reason they are separate from each other:
+/// the three writes answer different questions. A save can earn badges and has
+/// to name them, an edit can earn none, and a delete can take them away and says
+/// nothing about it.
+///
+/// Not auto-disposed, for the reason the other two are not: the screen that
+/// asked can be gone before the write comes back.
+final deleteClimbControllerProvider =
+    AsyncNotifierProvider<DeleteClimbController, void>(
+      DeleteClimbController.new,
+    );
+
+/// Deletes one climb, its photographs, and any badge it was holding up.
+///
+/// **The state does not refuse a second tap**, exactly as the other two do not.
+/// A widget reads this through a rebuild, so a control starts ignoring presses
+/// one frame late, and one frame is long enough for a thumb. The guard is a
+/// synchronous flag in `widgets/delete_climb_action.dart`, checked before the
+/// confirmation is even opened.
+class DeleteClimbController extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {}
+
+  /// Deletes the climb and says whether it went.
+  ///
+  /// **False covers both ways it can fail**, and they are the same thing to the
+  /// person holding the phone: the write threw, or there was no such climb to
+  /// delete. Either way nothing was taken away, so the screen stays where it is
+  /// and says the climb is still there.
+  ///
+  /// **The photo files go after the row does, never before, and only once the
+  /// transaction has committed.** A file deletion cannot be rolled back, so
+  /// doing it first would mean a write that failed had already taken the
+  /// photographs off a climb still sitting in the log. This order can leave a
+  /// file behind instead, which is litter in the documents directory and costs
+  /// the user nothing.
+  ///
+  /// The deletion is awaited rather than fired and forgotten, unlike the photo
+  /// draft's cleanup. That cleanup runs while a provider is being disposed with
+  /// nothing left to tell; this one has a caller waiting on an answer, and the
+  /// answer is more honest if the files really are gone by the time it arrives.
+  /// [PhotoStore.removeAll] steps over a file that is already gone and keeps
+  /// going past one it cannot delete, so a stubborn file cannot turn a
+  /// successful delete into a failed one.
+  ///
+  /// No badge is named on the way out. See [ClimbRemoved] for why the app stays
+  /// quiet about what a delete revoked.
+  Future<bool> delete({required int id}) async {
+    state = const AsyncValue<void>.loading();
+    try {
+      final ClimbRemoved? removed = await ref
+          .read(climbDaoProvider)
+          .deleteClimb(id: id);
+      if (removed == null) {
+        state = const AsyncValue<void>.data(null);
+        return false;
+      }
+
+      if (removed.photoFilenames.isNotEmpty) {
+        await ref.read(photoStoreProvider).removeAll(removed.photoFilenames);
+      }
+      state = const AsyncValue<void>.data(null);
+      return true;
+    } catch (error, stackTrace) {
+      state = AsyncValue<void>.error(error, stackTrace);
+      return false;
+    }
+  }
+}
+
 /// The text of a field someone actually filled in, or null.
 String? _filled(String? value) {
   final trimmed = value?.trim() ?? '';

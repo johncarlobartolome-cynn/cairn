@@ -173,7 +173,7 @@ void main() {
     // screen that asked was showing the climb a moment ago, so saying nothing
     // happened is the honest answer.
     final int id = await logBareClimb();
-    await climbs.removeById(id);
+    await climbs.deleteClimb(id: id);
 
     expect(
       await climbs.updateClimb(

@@ -38,14 +38,18 @@ export 'database/database.dart' show Achievement, Climb, Mountain;
 /// widget's reach, so the door is here.
 export 'database/tables/achievements.dart' show AchievementType;
 
-/// What a save produced, so the sheet that asked for it can say what happened.
+/// What a write produced, so the caller that asked for it can act on it.
 ///
 /// The mark-climbed sheet has to name the badges a climb just earned, and only
-/// the write knows which of them are new. These two carry that answer up. The
-/// `show` is doing real work: the DAOs those files declare stay behind the door,
-/// so the layer rule is untouched and a widget still cannot reach a query.
+/// the write knows which of them are new. [ClimbRemoved] is the same shape
+/// pointing the other way: the delete controller has to know which photo files
+/// to remove, and the row that named them is gone by the time it answers.
+///
+/// The `show` is doing real work: the DAOs those files declare stay behind the
+/// door, so the layer rule is untouched and a widget still cannot reach a
+/// query.
 export 'database/daos/achievement_dao.dart' show EarnedBadges;
-export 'database/daos/climb_dao.dart' show ClimbLogged;
+export 'database/daos/climb_dao.dart' show ClimbLogged, ClimbRemoved;
 
 /// The one database instance for the app.
 ///

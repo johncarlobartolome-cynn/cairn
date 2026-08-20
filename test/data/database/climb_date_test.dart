@@ -34,7 +34,7 @@ void main() {
     final id = await pulagId();
     await climbs.add(ClimbsCompanion.insert(mountainId: id, date: date));
     final stored = (await climbs.watchAll().first).single;
-    await climbs.removeById(stored.id);
+    await climbs.deleteClimb(id: stored.id);
     return stored.date;
   }
 

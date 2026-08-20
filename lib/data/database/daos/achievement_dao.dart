@@ -40,6 +40,40 @@ class EarnedBadges {
   int get count => (peak ? 1 : 0) + milestones.length;
 }
 
+/// The badges one delete took away, and only the ones it took away.
+///
+/// The mirror of [EarnedBadges], and it has to be a mirror: a delete asks for
+/// the whole unearned set every time rather than working out what changed, so
+/// most of what it asks for was never in the file. This is the difference.
+///
+/// Nothing in the app says any of this out loud, and that is deliberate. A
+/// climb deleted by mistake is a thing the confirmation already asked about,
+/// and a line naming the badge that went with it would be the app reading the
+/// consequence back as a punishment. The badges grid shows it. This exists so
+/// the write can be held to what it took, rather than a test having to infer it
+/// from a table that may never have held the row.
+@immutable
+class RevokedBadges {
+  const RevokedBadges({required this.peak, required this.milestones});
+
+  /// The answer for a delete that took nothing, which is most deletes.
+  static const RevokedBadges none = RevokedBadges(
+    peak: false,
+    milestones: <AchievementType>[],
+  );
+
+  /// True when that was the peak's last climb, so the peak's own badge went.
+  final bool peak;
+
+  /// The milestones that no longer hold, in the order they are reached.
+  final List<AchievementType> milestones;
+
+  bool get isEmpty => !peak && milestones.isEmpty;
+
+  /// How many badges went.
+  int get count => (peak ? 1 : 0) + milestones.length;
+}
+
 /// Every query against `achievements`. Nothing above this layer writes SQL.
 class AchievementDao extends DatabaseAccessor<AppDatabase> {
   AchievementDao(super.attachedDatabase);
@@ -128,6 +162,78 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
     );
   }
 
+  /// Takes away every badge the climber no longer holds.
+  ///
+  /// **The exact inverse of [unlockEarned], and the whole design is that it
+  /// cannot be anything else.** Called from inside the write that deletes a
+  /// climb, so the counts it is handed already have that climb out of them, the
+  /// same way the unlock's counts already have the new one in.
+  ///
+  /// The peak's own badge is the one part that is not a count. A peak badge
+  /// means "you have been up here", so it goes when the last climb of that peak
+  /// goes and stays while any climb of it remains. [mountainStillClimbed]
+  /// carries that answer in rather than asking, because whether a peak has
+  /// climbs left is a question about `climbs` and this DAO owns
+  /// `achievements`. Same reason [peaksClimbed] arrives as a number.
+  ///
+  /// The milestones come off [unearnedMilestones], which is [earnedMilestones]
+  /// read backwards rather than a second rule written out. That is the point: a
+  /// revoke rule spelled out on its own would be right today and wrong the day
+  /// a tier is added or a threshold moves, and it would be wrong silently.
+  ///
+  /// Every delete ignores a badge that is not there, so this asks for the full
+  /// unearned set each time. It makes a delete that takes nothing free, and it
+  /// also lets a badge that should have gone earlier go on the next delete
+  /// instead of never.
+  Future<RevokedBadges> revokeUnearned({
+    required int mountainId,
+    required bool mountainStillClimbed,
+    required int peaksClimbed,
+    required int peaksInLibrary,
+  }) async {
+    // Short-circuits before the delete, so a peak with a climb still on it is
+    // never even asked about.
+    final bool peak =
+        !mountainStillClimbed && await _revokePeakBadge(mountainId);
+
+    final milestones = <AchievementType>[];
+    for (final AchievementType type in unearnedMilestones(
+      peaksClimbed: peaksClimbed,
+      peaksInLibrary: peaksInLibrary,
+    )) {
+      if (await _revokeMilestone(type)) milestones.add(type);
+    }
+
+    return RevokedBadges(
+      peak: peak,
+      milestones: List<AchievementType>.unmodifiable(milestones),
+    );
+  }
+
+  /// True when there was a peak badge on [mountainId] and it is gone now.
+  Future<bool> _revokePeakBadge(int mountainId) async {
+    final int gone =
+        await (delete(_achievements)..where(
+              (a) =>
+                  a.type.equalsValue(AchievementType.perMountain) &
+                  a.mountainId.equals(mountainId),
+            ))
+            .go();
+    return gone > 0;
+  }
+
+  /// True when that milestone was in the file and is gone now.
+  ///
+  /// The `mountainId IS NULL` half is not decoration. It is what the milestone
+  /// unique index is partial on, and without it a badge type that ever gained a
+  /// per-peak form would have its peak rows swept up by a milestone revoke.
+  Future<bool> _revokeMilestone(AchievementType type) async {
+    final int gone = await (delete(
+      _achievements,
+    )..where((a) => a.type.equalsValue(type) & a.mountainId.isNull())).go();
+    return gone > 0;
+  }
+
   /// Which milestones a climber with this many peaks behind them has reached.
   ///
   /// Pure, so the rule can be read on its own and tested without a database.
@@ -142,6 +248,35 @@ class AchievementDao extends DatabaseAccessor<AppDatabase> {
       if (peaksClimbed >= kHalfwayPeaks) AchievementType.threePeaks,
       if (peaksInLibrary > 0 && peaksClimbed >= peaksInLibrary)
         AchievementType.allPeaks,
+    ];
+  }
+
+  /// Which milestones a climber with this many peaks behind them has not.
+  ///
+  /// **Derived from [earnedMilestones] rather than written out**, and that is
+  /// the whole of why the revoke cannot drift from the unlock. There is one
+  /// statement of what a milestone means in this file. This reads it the other
+  /// way round.
+  ///
+  /// A second list, spelled out here, would be right on the day it was written
+  /// and wrong the first time a tier was added or a threshold moved, and it
+  /// would be wrong quietly: nothing fails when a badge simply fails to go
+  /// away.
+  ///
+  /// [AchievementType.perMountain] is not a milestone and is skipped. It is not
+  /// a function of a count at all, so it has no place in a list decided by one.
+  static List<AchievementType> unearnedMilestones({
+    required int peaksClimbed,
+    required int peaksInLibrary,
+  }) {
+    final Set<AchievementType> held = earnedMilestones(
+      peaksClimbed: peaksClimbed,
+      peaksInLibrary: peaksInLibrary,
+    ).toSet();
+
+    return <AchievementType>[
+      for (final AchievementType type in AchievementType.values)
+        if (type != AchievementType.perMountain && !held.contains(type)) type,
     ];
   }
 

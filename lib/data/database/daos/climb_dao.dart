@@ -21,6 +21,24 @@ class ClimbLogged {
   final EarnedBadges earned;
 }
 
+/// One deleted climb: the photographs that went with it, and the badges that no
+/// longer hold.
+///
+/// The mirror of [ClimbLogged]. The filenames travel up because the files are
+/// not the database's to delete and the row that named them is already gone, so
+/// this is the last moment anything knows what they were called. The badges
+/// travel for the reason the earned ones do: they went inside the same
+/// transaction, so a caller holding this holds the whole of what the delete did.
+@immutable
+class ClimbRemoved {
+  const ClimbRemoved({required this.photoFilenames, required this.revoked});
+
+  /// The bare filenames the row was holding, in the order it held them.
+  final List<String> photoFilenames;
+
+  final RevokedBadges revoked;
+}
+
 /// Every query against `climbs`. Nothing above this layer writes SQL.
 class ClimbDao extends DatabaseAccessor<AppDatabase> {
   ClimbDao(super.attachedDatabase);
@@ -191,6 +209,78 @@ class ClimbDao extends DatabaseAccessor<AppDatabase> {
     return changed > 0;
   }
 
-  Future<int> removeById(int id) =>
-      (delete(_climbs)..where((c) => c.id.equals(id))).go();
+  /// Deletes one climb, and everything that was only true because of it.
+  ///
+  /// The gap this closes: nothing in the app deleted anything. A climb logged
+  /// against the wrong peak, or a second one saved by a tap that got through,
+  /// was permanent. The same shape as the one T34 closed, where the app
+  /// recorded something and would not let you fix it.
+  ///
+  /// **Null means there was no such climb**, which is the honest answer for a
+  /// screen that was showing it a moment ago. Nothing was deleted and nothing
+  /// was revoked, so the caller has a failure to report rather than a success
+  /// to act on.
+  ///
+  /// **The row and the badges go in one transaction**, mirroring [logClimb]. A
+  /// climb whose badge outlived it is the contradiction anyone would spot: the
+  /// peaks list turns the card grey while the badge grid still shows it gold. A
+  /// crash part way has to leave both or neither.
+  ///
+  /// The revoke is the inverse of the unlock rather than a rule of its own. See
+  /// [AchievementDao.revokeUnearned] and [AchievementDao.unearnedMilestones]
+  /// for why that is the only version of this that stays correct.
+  ///
+  /// **The photographs are not deleted here.** They are files, the file system
+  /// knows nothing about this transaction, and a rollback cannot bring a deleted
+  /// file back. So the names come out and the caller deletes the files once the
+  /// row is definitely gone. The cost of that order is a file left behind if the
+  /// app dies in between, which is litter. The other order costs a photograph
+  /// off a climb that is still in the log.
+  ///
+  /// Every filename on a climb is that climb's own. `PhotoStore.copyIn` builds
+  /// each one from a microsecond stamp and a random suffix and then checks the
+  /// directory before using it, so no two copies of anything share a name and
+  /// nothing here can delete a photograph another climb is showing. Held by
+  /// `photo_store_test.dart`, and again by the two-climb case in
+  /// `climb_delete_test.dart`.
+  Future<ClimbRemoved?> deleteClimb({required int id}) {
+    return transaction(() async {
+      // Read before the delete, because the filenames are on the row and the
+      // row is about to stop existing.
+      final Climb? climb = await (select(
+        _climbs,
+      )..where((c) => c.id.equals(id))).getSingleOrNull();
+      if (climb == null) return null;
+
+      await (delete(_climbs)..where((c) => c.id.equals(id))).go();
+
+      // Counted after the delete and inside the same transaction, so the climb
+      // being deleted is already out of the answer. The exact mirror of the
+      // unlock in [logClimb].
+      final RevokedBadges revoked = await _achievements.revokeUnearned(
+        mountainId: climb.mountainId,
+        mountainStillClimbed: await _hasClimbs(climb.mountainId),
+        peaksClimbed: await countClimbedMountains(),
+        peaksInLibrary: await _mountains.countAll(),
+      );
+
+      return ClimbRemoved(
+        photoFilenames: List<String>.unmodifiable(climb.photoFilenames),
+        revoked: revoked,
+      );
+    });
+  }
+
+  /// Whether this peak still has a climb against it.
+  ///
+  /// Counted in SQL rather than read as rows, for the reason
+  /// [countClimbedMountains] is: the answer is a number and nothing wants the
+  /// list.
+  Future<bool> _hasClimbs(int mountainId) async {
+    final count = _climbs.id.count();
+    final query = selectOnly(_climbs)
+      ..addColumns([count])
+      ..where(_climbs.mountainId.equals(mountainId));
+    return ((await query.getSingle()).read(count) ?? 0) > 0;
+  }
 }
