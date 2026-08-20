@@ -12,6 +12,7 @@ import '../../shared/widgets/section_label.dart';
 import 'climb_facts.dart';
 import 'mark_climbed_sheet.dart';
 import 'widgets/climb_photo_strip.dart';
+import 'widgets/delete_climb_action.dart';
 
 /// One logged climb: the photos, the day it happened, who was there, and what
 /// was written down.
@@ -25,6 +26,10 @@ import 'widgets/climb_photo_strip.dart';
 /// found using the app on his own phone. A climb is often logged on a trail with
 /// no signal and no patience for typing, so the rest of it has to be something
 /// you can come back and add.
+///
+/// **T38 gave it a way out.** Nothing in the app deleted anything, so a climb
+/// logged against the wrong peak was permanent. The same gap T34 closed from the
+/// other side: the app recorded something and would not let you fix it.
 class ClimbDetailScreen extends ConsumerWidget {
   const ClimbDetailScreen({required this.climbId, super.key});
 
@@ -124,6 +129,11 @@ class _Detail extends StatelessWidget {
                 const SizedBox(height: CairnSpace.x8),
                 Text(notes, style: text.body),
               ],
+              // Last on the screen, under everything the climb holds. See
+              // [DeleteClimbAction] for why it is here rather than in the bar
+              // next to the pencil.
+              const SizedBox(height: CairnSpace.x32),
+              DeleteClimbAction(climb: climb),
             ],
           ),
         ),
