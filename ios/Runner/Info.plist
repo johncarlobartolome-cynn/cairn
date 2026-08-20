@@ -26,6 +26,21 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Gallery only. `image_picker`'s `pickMultiImage` is the one call in the
+	     app that reads the photo library, and Cairn has no camera anywhere, so
+	     NSCameraUsageDescription would declare a permission the app never asks
+	     for.
+
+	     On iOS 14 and up this string is never shown. The plugin presents
+	     PHPickerViewController, which runs in its own process, hands over only
+	     the files the user chose, and needs no authorisation at all; T36 watched
+	     the picker open on iOS 26 with no key present and no prompt. The key is
+	     here for the bottom of the range this project declares.
+	     IPHONEOS_DEPLOYMENT_TARGET is 13.0, and on 13 the same call falls back
+	     to UIImagePickerController, which asks PHPhotoLibrary for
+	     authorisation. iOS kills an app that asks without this key. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cairn opens your photo library so you can attach the photographs you took on a climb. Only the ones you pick are copied into your log, and they stay on this phone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
