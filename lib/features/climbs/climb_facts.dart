@@ -41,6 +41,15 @@ extension ClimbFacts on Climb {
 /// Said when a climb is saved and no badge fired, which is most saves.
 const String climbSaved = 'Climb saved';
 
+/// Said when an edit lands.
+///
+/// **Two words, and no badge among them.** An edit cannot earn one: badges come
+/// from which peaks have a climb against them, and an edit keeps the row on the
+/// peak it was already counted for. So there is nothing new to name, and naming
+/// something already earned would spend the one line the app has on a
+/// congratulation for last week.
+const String climbUpdated = 'Climb updated';
+
 /// What the app says the moment a climb is saved.
 ///
 /// **This is the app's payoff and it is one line long.** Marking a peak climbed

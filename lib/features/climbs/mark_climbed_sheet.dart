@@ -41,17 +41,36 @@ const Duration _saidWithBadges = Duration(seconds: 6);
 /// only ever handles the bare filenames that come back. See
 /// `data/photos/photo_filename.dart` for why that distinction is the one that
 /// matters.
+/// **The same sheet also edits a climb that already exists**, opened through
+/// [MarkClimbedSheet.edit]. One form rather than two, because the two would be
+/// the same four fields under the same rules and the rules would drift apart the
+/// first time one of them changed. What differs is the words, the write, and who
+/// owns the photographs on the way out.
 class MarkClimbedSheet extends ConsumerStatefulWidget {
   const MarkClimbedSheet({
-    required this.mountainId,
-    required this.mountainName,
+    required int this.mountainId,
+    required String this.mountainName,
     super.key,
-  });
+  }) : climb = null;
 
-  final int mountainId;
+  /// The same form, opened on a climb that is already in the log.
+  ///
+  /// It names no peak, and it needs none. The row is already attached to one and
+  /// an edit cannot move it, the acknowledgement has no badge to name, and climb
+  /// detail behind the sheet does not say which peak it is either.
+  const MarkClimbedSheet.edit({required Climb this.climb, super.key})
+    : mountainId = null,
+      mountainName = null;
 
-  /// Shown under the title, so the sheet says which peak it is about.
-  final String mountainName;
+  /// The peak a new climb is being logged against. Null on an edit.
+  final int? mountainId;
+
+  /// Shown under the title, so the sheet says which peak it is about, and used
+  /// to name the peak's own badge in the acknowledgement. Null on an edit.
+  final String? mountainName;
+
+  /// The climb being edited, or null when this is a new one.
+  final Climb? climb;
 
   /// Said when a save came back with no row on it, above the button.
   ///
@@ -60,6 +79,15 @@ class MarkClimbedSheet extends ConsumerStatefulWidget {
   /// line like this in that moment would be the app lying about its own work.
   static const String saveFailedMessage =
       'That climb did not save. Give it another go.';
+
+  /// The same line for an edit, and it says changes rather than climb.
+  ///
+  /// A climb that failed to save does not exist yet; an edit that failed to save
+  /// is a climb still sitting in the log exactly as it was. Telling somebody
+  /// their climb did not save in that moment would read as though they had lost
+  /// it.
+  static const String editFailedMessage =
+      'Those changes did not save. Give it another go.';
 
   /// Opens the sheet over whatever route [context] is on.
   ///
@@ -71,12 +99,38 @@ class MarkClimbedSheet extends ConsumerStatefulWidget {
     required int mountainId,
     required String mountainName,
   }) {
+    return _open(
+      context,
+      MarkClimbedSheet(mountainId: mountainId, mountainName: mountainName),
+    );
+  }
+
+  /// Opens the sheet on [climb], with everything it already holds in it.
+  ///
+  /// The photo draft is replaced, inside a scope that reaches no further than
+  /// this sheet, with one that starts from the climb's own photographs. See
+  /// [ClimbPhotoDraft.new] for why the photos arrive that way rather than by a
+  /// call into the notifier afterwards.
+  static Future<void> showEdit(BuildContext context, {required Climb climb}) {
+    return _open(
+      context,
+      ProviderScope(
+        overrides: <Override>[
+          climbPhotoDraftProvider.overrideWith(
+            () => ClimbPhotoDraft(existing: climb.photoFilenames),
+          ),
+        ],
+        child: MarkClimbedSheet.edit(climb: climb),
+      ),
+    );
+  }
+
+  static Future<void> _open(BuildContext context, Widget sheet) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) =>
-          MarkClimbedSheet(mountainId: mountainId, mountainName: mountainName),
+      builder: (_) => sheet,
     );
   }
 
@@ -85,8 +139,13 @@ class MarkClimbedSheet extends ConsumerStatefulWidget {
 }
 
 class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
-  final TextEditingController _companions = TextEditingController();
-  final TextEditingController _notes = TextEditingController();
+  /// Both start on what the climb already says, which is nothing on a new one.
+  late final TextEditingController _companions = TextEditingController(
+    text: widget.climb?.companions ?? '',
+  );
+  late final TextEditingController _notes = TextEditingController(
+    text: widget.climb?.notes ?? '',
+  );
 
   /// Today as a calendar day in the phone's own timezone, clock time dropped.
   ///
@@ -94,7 +153,17 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
   /// under a sheet left open across midnight.
   final DateTime _today = _startOfToday();
 
-  late DateTime _date = _today;
+  /// The day the sheet is holding: the climb's own on an edit, today on a new
+  /// one.
+  ///
+  /// A stored day reads back as UTC midnight, so its `.year`, `.month` and
+  /// `.day` say the stored day in every zone. The picker hands back a local
+  /// one. Both are turned into the same kind here, so the sheet holds one
+  /// sort of [DateTime] rather than two that only happen to print alike.
+  late DateTime _date = _dayOf(widget.climb?.date) ?? _today;
+
+  /// True when this sheet is editing a climb rather than logging one.
+  bool get _editing => widget.climb != null;
 
   /// Set when a save comes back empty-handed. Shown above the button, and the
   /// sheet stays open with everything the user typed still in it.
@@ -127,10 +196,14 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
   }
 
   Future<void> _pickDate() async {
+    final DateTime earliest = DateTime(_today.year - _yearsBack);
     final picked = await showDatePicker(
       context: context,
       initialDate: _date,
-      firstDate: DateTime(_today.year - _yearsBack),
+      // A climb older than the picker's own floor would otherwise open outside
+      // its range, which is an assertion rather than a screen. The floor gives
+      // way to the day the climb actually holds.
+      firstDate: _date.isBefore(earliest) ? _date : earliest,
       lastDate: _today,
       helpText: 'Pick the day you climbed',
     );
@@ -159,48 +232,82 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
     final List<String> photoFilenames = await photos.settled();
     if (!mounted) return;
 
-    final ClimbLogged? saved = await ref
-        .read(markClimbedControllerProvider.notifier)
-        .save(
-          mountainId: widget.mountainId,
-          date: _date,
-          companions: _companions.text,
-          notes: _notes.text,
-          photoFilenames: photoFilenames,
-        );
+    final _Said? said = await _write(photoFilenames);
 
     if (!mounted) return;
 
-    if (saved == null) {
+    if (said == null) {
       // Let go here, and this is the only place that does. A save that really
       // failed has to be tappable again, so the guard cannot be allowed to latch:
       // that would leave the sheet holding what was typed behind a button that
       // does nothing.
       _saving = false;
-      setState(() => _failure = MarkClimbedSheet.saveFailedMessage);
+      setState(
+        () => _failure = _editing
+            ? MarkClimbedSheet.editFailedMessage
+            : MarkClimbedSheet.saveFailedMessage,
+      );
       return;
     }
 
-    // Before the pop, and only on a save that landed. Popping disposes the
+    // Before the pop, and only on a write that landed. Popping disposes the
     // draft, and the draft deletes every copy the row does not name on the way
     // out, which is right for a sheet that was abandoned and would be data loss
     // one line later than this. The names are what is handed over rather than a
     // flag, so a photo that landed after the row was written goes with it.
+    //
+    // On an edit this is also the moment a photo the user took off the climb is
+    // deleted. The row named it until this write came back.
     photos.keep(photoFilenames);
 
     navigator.pop();
 
+    messenger.showSnackBar(
+      SnackBar(content: Text(said.message), duration: said.duration),
+    );
+  }
+
+  /// Writes the sheet, and hands back what to say about it.
+  ///
+  /// Null means the write did not land, and it means that on both paths.
+  Future<_Said?> _write(List<String> photoFilenames) async {
+    final Climb? editing = widget.climb;
+
+    if (editing != null) {
+      final bool changed = await ref
+          .read(editClimbControllerProvider.notifier)
+          .save(
+            id: editing.id,
+            date: _date,
+            companions: _companions.text,
+            notes: _notes.text,
+            photoFilenames: photoFilenames,
+          );
+      // Two plain words, and that is the whole of it. **An edit names no badge,
+      // and it is not being modest: it cannot earn one.** Every badge is a
+      // function of which peaks have a climb against them, this row keeps its
+      // peak, and it was counted the day it was saved. Naming a badge here would
+      // congratulate somebody for something they did last week, which is exactly
+      // what would make the sentence worthless on the climb that does earn one.
+      return changed ? const _Said(climbUpdated, _saidBriefly) : null;
+    }
+
+    final ClimbLogged? saved = await ref
+        .read(markClimbedControllerProvider.notifier)
+        .save(
+          mountainId: widget.mountainId!,
+          date: _date,
+          companions: _companions.text,
+          notes: _notes.text,
+          photoFilenames: photoFilenames,
+        );
+    if (saved == null) return null;
+
     // The one place the app tells somebody what they just earned. See
     // [climbSavedMessage] for the words and why there are no more of them.
-    final String message = climbSavedMessage(
-      saved.earned,
-      peakName: widget.mountainName,
-    );
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: saved.earned.isEmpty ? _saidBriefly : _saidWithBadges,
-      ),
+    return _Said(
+      climbSavedMessage(saved.earned, peakName: widget.mountainName!),
+      saved.earned.isEmpty ? _saidBriefly : _saidWithBadges,
     );
   }
 
@@ -208,7 +315,11 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
   Widget build(BuildContext context) {
     final text = context.cairnText;
     final colors = context.cairnColors;
-    final bool saving = ref.watch(markClimbedControllerProvider).isLoading;
+    // One controller or the other, never both. Which of the two is fixed for as
+    // long as this sheet is open, so the watch is stable across rebuilds.
+    final bool saving = _editing
+        ? ref.watch(editClimbControllerProvider).isLoading
+        : ref.watch(markClimbedControllerProvider).isLoading;
 
     // The draft publishes each copy as it lands and stays loading until the last
     // one has, so this is on for exactly as long as photos are being copied in.
@@ -233,9 +344,16 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Mark climbed', style: text.screenTitle),
-              const SizedBox(height: CairnSpace.x4),
-              Text(widget.mountainName, style: text.meta),
+              Text(
+                _editing ? 'Edit climb' : 'Mark climbed',
+                style: text.screenTitle,
+              ),
+              // The peak's name, on the path that has one. An edit carries no
+              // subtitle rather than a blank line where one would sit.
+              if (!_editing) ...[
+                const SizedBox(height: CairnSpace.x4),
+                Text(widget.mountainName!, style: text.meta),
+              ],
               const SizedBox(height: CairnSpace.x24),
 
               const SectionLabel('Date'),
@@ -284,7 +402,7 @@ class _MarkClimbedSheetState extends ConsumerState<MarkClimbedSheet> {
 
               const SizedBox(height: CairnSpace.x24),
               CairnButton(
-                label: 'Save climb',
+                label: _editing ? 'Save changes' : 'Save climb',
                 glyph: const Icon(Icons.check_rounded),
                 busy: saving || copying,
                 onPressed: _save,
@@ -320,6 +438,19 @@ class _DateField extends StatelessWidget {
     onTap: onTap,
   );
 }
+
+/// One acknowledgement: what to say, and how long to leave it up.
+@immutable
+class _Said {
+  const _Said(this.message, this.duration);
+
+  final String message;
+  final Duration duration;
+}
+
+/// One calendar day as the picker's own kind of [DateTime], or null.
+DateTime? _dayOf(DateTime? day) =>
+    day == null ? null : DateTime(day.year, day.month, day.day);
 
 /// The local calendar day, with the clock time dropped.
 ///
