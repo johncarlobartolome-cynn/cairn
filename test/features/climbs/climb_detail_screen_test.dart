@@ -117,6 +117,56 @@ void main() {
     await disposeApp(tester);
   });
 
+  testWidgets('a climb with only a day invites the rest', (tester) async {
+    // The gap Jeysi found on his own phone. A climb logged on the trail with
+    // nothing but a date drew one line, and there was no reading of that screen
+    // that said the rest was still available.
+    await openClimb(tester, await logClimb());
+
+    expect(find.text(climbDayLabel(day)), findsOneWidget);
+    expect(find.text('STILL TO ADD'), findsOneWidget);
+    expect(
+      find.textContaining('Who came along, how the climb went'),
+      findsOneWidget,
+    );
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a climb that already says something does not', (tester) async {
+    // Only when the day really is all there is. A climb carrying a note reads
+    // as an entry somebody wrote, and asking that person for photographs as
+    // well would be the app nagging.
+    await openClimb(tester, await logClimb(notes: 'Sea of clouds at sunrise.'));
+
+    expect(find.text('Sea of clouds at sunrise.'), findsOneWidget);
+    expect(find.text('STILL TO ADD'), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a climb with only companions does not either', (tester) async {
+    await openClimb(tester, await logClimb(companions: 'Mara and Enzo'));
+
+    expect(find.text('STILL TO ADD'), findsNothing);
+
+    await disposeApp(tester);
+  });
+
+  testWidgets('a climb with only a photo does not either', (tester) async {
+    const name = 'climb_1755300000000001_a1b2c3d4.jpg';
+    writePickedFile(documents, name);
+
+    await openClimb(
+      tester,
+      await logClimb(photoFilenames: const <String>[name]),
+    );
+
+    expect(find.text('STILL TO ADD'), findsNothing);
+
+    await disposeApp(tester);
+  });
+
   testWidgets('the photos open the screen, above the day', (tester) async {
     const name = 'climb_1755300000000001_a1b2c3d4.jpg';
     writePickedFile(documents, name);
