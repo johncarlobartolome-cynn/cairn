@@ -8,7 +8,7 @@ An offline hiking log for six Philippine peaks. Mark a peak climbed, keep the da
 
 - Holds a fixed list of six peaks with real figures: elevation, difficulty, hours to the summit, and where the trail starts
 - Marks one climbed with a date, companions, notes and photos, all optional except the date
-- Turns that peak's card from grey to colour on the list, so progress reads without a counter
+- Turns that peak's card from grey to colour on the list, so progress reads without a counter. All six fit one Android screen, which is the size the layout was measured against. On a shorter screen the last row takes a small scroll
 - Unlocks a badge for the peak, plus a milestone badge at the third and the sixth
 - Builds a card on the phone that you can send to somebody
 - Works with no account, no sign-in, and no network. Nothing in the app calls out
