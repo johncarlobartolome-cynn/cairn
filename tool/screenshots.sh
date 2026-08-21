@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 #
-# Captures one PNG of every route, plus the mark-climbed sheet, in both themes
-# on a running Android emulator.
+# Captures PNGs of the app on a running Android emulator. Two sets:
 #
-#   tool/screenshots.sh
+#   tool/screenshots.sh          every route in both themes, over the emulator's
+#                                own database, into screenshots/
+#   tool/screenshots.sh readme   the four screens the README is built from, over
+#                                a seeded demo library, into screenshots/readme/
 #
-# Output goes to screenshots/ (gitignored) and is overwritten in place, so the file
-# set is the same every run. Set CAIRN_SCREENSHOT_DIR to write elsewhere.
+# The default set shoots whatever is on the device, which is what a sweep should
+# do. The readme set seeds its own library first, because the state the README has
+# to show is not the state a fresh install is in. See
+# integration_test/readme_fixture.dart.
+#
+# Output is gitignored and overwritten in place, so the file set is the same every
+# run. Set CAIRN_SCREENSHOT_DIR to write elsewhere. The three curated README
+# images live in docs/screenshots/, are committed, and are not written by this
+# script; copying and downscaling into that folder is a deliberate step.
 #
 # The harness fails rather than half-succeeds: no emulator, a build error, a route
 # that never leaves its loading spinner, or a missing image all exit non-zero.
@@ -17,23 +26,39 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="${CAIRN_SCREENSHOT_DIR:-$PROJECT_ROOT/screenshots}"
 
 DRIVER="test_driver/integration_test.dart"
-TARGET="integration_test/screenshot_test.dart"
-
-# integration_test/screenshot_test.dart is the source of truth for these names.
-# Listed again here so a rename fails the run instead of quietly shipping nine
-# fresh images and one stale tenth.
-EXPECTED="peaks-light peaks-climbed-light peak-detail-light mark-climbed-light climb-detail-light badges-light share-card-light
-peaks-dark peaks-climbed-dark peak-detail-dark mark-climbed-dark climb-detail-dark badges-dark share-card-dark"
-EXPECTED_COUNT=14
 
 die() {
   echo "" >&2
   echo "screenshots: $*" >&2
   exit 1
 }
+
+# The target's own shot names are the source of truth for EXPECTED. Listed again
+# here so a rename fails the run instead of quietly shipping nine fresh images
+# and one stale tenth.
+case "${1:-all}" in
+  all)
+    TARGET="integration_test/screenshot_test.dart"
+    OUT_DIR="${CAIRN_SCREENSHOT_DIR:-$PROJECT_ROOT/screenshots}"
+    EXPECTED="peaks-light peaks-climbed-light peak-detail-light mark-climbed-light climb-detail-light badges-light share-card-light
+peaks-dark peaks-climbed-dark peak-detail-dark mark-climbed-dark climb-detail-dark badges-dark share-card-dark"
+    EXPECTED_COUNT=14
+    ;;
+  readme)
+    TARGET="integration_test/readme_screenshot_test.dart"
+    # Its own folder, so the two sets cannot clear each other out. Still under
+    # screenshots/, which is gitignored whole.
+    OUT_DIR="${CAIRN_SCREENSHOT_DIR:-$PROJECT_ROOT/screenshots/readme}"
+    EXPECTED="readme-peaks-light readme-peak-detail-light readme-badges-light readme-climb-detail-light
+readme-peaks-dark readme-peak-detail-dark readme-badges-dark readme-climb-detail-dark"
+    EXPECTED_COUNT=8
+    ;;
+  *)
+    die "unknown set '$1'. Use no argument for every route, or 'readme'."
+    ;;
+esac
 
 for cmd in flutter adb; do
   command -v "$cmd" >/dev/null 2>&1 || die "$cmd is not on PATH."
