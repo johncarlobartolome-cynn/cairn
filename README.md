@@ -4,6 +4,12 @@ An offline hiking log for six Philippine peaks. Mark a peak climbed, keep the da
 
 **Built and checked on Android.** It also builds and runs on the iOS simulator, where every screen has been walked in both themes. No iPhone has ever run it.
 
+## Install it
+
+[**Download the APK**](https://github.com/johncarlobartolome-cynn/cairn/releases/tag/v1.0.0), 21.5 MB, arm64, signed with a real release key.
+
+Open it on the phone and allow the install when Android asks. It asks because this did not come from the Play Store. arm64 suits any phone from roughly 2017 onward.
+
 ## What it does
 
 - Holds a fixed list of six peaks with real figures: elevation, difficulty, hours to the summit, and where the trail starts
