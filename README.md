@@ -23,6 +23,10 @@ Open it on the phone and allow the install when Android asks. It asks because th
 
 Captured on an Android emulator in the light theme. Everything on these screens is seeded demo data, written by the capture harness so the pictures show a library part way done. `tool/screenshots.sh readme` builds that state and takes the shots, so the same three screens come back on anybody's machine.
 
+![Logging a climb. Three photographs land in the sheet one at a time, Save climb is pressed, and the peak's screen says two badges were earned. Back on the list, Mt. Batulao has turned from grey to green and the count reads 1 of 6 climbed.](docs/screenshots/logging-a-climb.gif)
+
+Logging a climb, in the dark theme, recorded on the phone. The photographs arrive one at a time, the save names the badges it earned, and the card turns from grey to green on the way back.
+
 | Peaks | Peak detail | Badges |
 |---|---|---|
 | ![The peaks list. Six peak cards in a two-column grid. Batulao, Kabunian and Ulap are in full green with a small cairn mark in the top corner of each. Daraitan, Mariglem and Pulag are washed out grey with no mark. A label beside the heading reads 3 of 6 climbed, over a bar filled halfway.](docs/screenshots/peaks-list.png) | ![Peak detail for Mt. Kabunian. Under the name it says Benguet, 4 hours to the summit. Two tiles hold 1,789 m elevation and Moderate difficulty. Below them the jump-off point reads as two plain sentences, then a full-width Mark climbed button, then one climb logged on 4 July 2026 with Mara and Enzo.](docs/screenshots/peak-detail.png) | ![The badges grid. A tile reads 5 of 9 earned. Under a Milestones label, First climb and Three peaks are gold scalloped seals carrying the date they unlocked, and All peaks is that same scalloped shape drawn as a thin outline. Under a Peaks label, an earned peak badge is a filled circle and a locked one is an outlined circle.](docs/screenshots/badges-grid.png) |
