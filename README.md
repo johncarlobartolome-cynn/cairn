@@ -6,7 +6,7 @@ An offline hiking log for six Philippine peaks. Mark a peak climbed, keep the da
 
 ## Install it
 
-[**Download the APK**](https://github.com/johncarlobartolome-cynn/cairn/releases/tag/v1.0.0), 21.5 MB, arm64, signed with a real release key.
+[**Download the APK**](https://github.com/johncarlobartolome-cynn/cairn/releases/latest), 21.5 MB, arm64, signed with a real release key.
 
 Open it on the phone and allow the install when Android asks. It asks because this did not come from the Play Store. arm64 suits any phone from roughly 2017 onward.
 
