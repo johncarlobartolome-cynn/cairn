@@ -84,6 +84,31 @@ flutter drive --device-id <simulator udid> \
   --target integration_test/screenshot_test.dart
 ```
 
+### Release signing
+
+```
+flutter build apk --split-per-abi
+```
+
+Release signing reads `android/key.properties`. That file is git-ignored, along with `*.jks` and `*.keystore`, and none of it is ever committed:
+
+```
+storePassword=<store password>
+keyPassword=<key password>
+keyAlias=<alias>
+storeFile=../cairn-release.jks
+```
+
+`storeFile` resolves against `android/`, the folder that holds `key.properties`, so a keystore kept outside the repository is reachable with `../`. An absolute path is used as written.
+
+With no `key.properties` the build signs with debug keys and says so, which is why a clone still builds. A file that is there but missing a value fails the build instead of falling back, because whoever wrote it meant to sign for real and quietly handing them debug keys would waste the release.
+
+To see what actually signed an APK:
+
+```
+apksigner verify --print-certs build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+```
+
 ## Numbers
 
 | | |
@@ -96,7 +121,7 @@ flutter drive --device-id <simulator udid> \
 ## What it does not do
 
 - **No iPhone has run it.** The simulator covers the screens, the storage, the fonts, the safe areas and the back swipe, and it cannot speak for a real device: battery, thermals, a photo library with thousands of images in it, HEIC files straight off a phone camera, and anything about shipping to the App Store are all untested
-- **Release builds sign with debug keys**, so no APK from this repo is fit to hand around
+- **A clone cannot build a shareable APK on its own.** No keystore is in the repository, so a fresh clone falls back to debug signing and prints a line saying that is what it did. Point `android/key.properties` at your own keystore and the release APK is signed for real. See [Release signing](#release-signing)
 - **Peak photography is deliberately missing.** Cards carry a placeholder mark for now. The desaturation treatment already runs through `ColorFiltered`, so photographs drop in without a code change
 - **No continuous integration.** The tests run on a machine, by hand
 
