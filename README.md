@@ -81,6 +81,14 @@ tool/screenshots.sh readme
 
 Both sets write into `screenshots/`, which is gitignored. `docs/screenshots/` holds the three curated and downscaled images the README uses, and those are committed.
 
+The launcher icon, regenerated from the app's own mark:
+
+```
+tool/icons.sh
+```
+
+That draws three 1024 masters into `assets/icon/`, fans them out to every Android density and every iOS slot, and fails if an iOS icon comes out with an alpha channel, which is what the App Store rejects an upload for. See [docs/app-icon.md](docs/app-icon.md).
+
 On an iOS simulator, drive the same target by hand. The script itself is Android-only because it picks its device through `adb`, but the Dart it runs is not:
 
 ```
