@@ -15,7 +15,14 @@ An offline hiking log for six Philippine peaks. Mark a peak climbed, keep the da
 
 ## How it looks
 
-Screenshots pending.
+Captured on an Android emulator in the light theme. Everything on these screens is seeded demo data, written by the capture harness so the pictures show a library part way done. `tool/screenshots.sh readme` builds that state and takes the shots, so the same three screens come back on anybody's machine.
+
+| Peaks | Peak detail | Badges |
+|---|---|---|
+| ![The peaks list. Six peak cards in a two-column grid. Batulao, Kabunian and Ulap are in full green with a small cairn mark in the top corner of each. Daraitan, Mariglem and Pulag are washed out grey with no mark. A label beside the heading reads 3 of 6 climbed, over a bar filled halfway.](docs/screenshots/peaks-list.png) | ![Peak detail for Mt. Kabunian. Under the name it says Benguet, 4 hours to the summit. Two tiles hold 1,789 m elevation and Moderate difficulty. Below them the jump-off point reads as two plain sentences, then a full-width Mark climbed button, then one climb logged on 4 July 2026 with Mara and Enzo.](docs/screenshots/peak-detail.png) | ![The badges grid. A tile reads 5 of 9 earned. Under a Milestones label, First climb and Three peaks are gold scalloped seals carrying the date they unlocked, and All peaks is that same scalloped shape drawn as a thin outline. Under a Peaks label, an earned peak badge is a filled circle and a locked one is an outlined circle.](docs/screenshots/badges-grid.png) |
+| Six cards, two to a row. A climbed peak is in full colour and carries the cairn mark while the rest are washed out, so how far along you are reads off the grid itself. | One peak: where it is, the two figures that decide whether you go, where the trail starts, the button that logs a climb, and every climb already logged against it. | Five of nine earned. A milestone is a scalloped seal and a peak badge is a plain circle, so the two are still told apart once the colour is taken away. |
+
+Peak photography has not been added yet, so a card carries a flat block where the photo will go. The badges grid scrolls, and its last row sits under the floating nav until you move it.
 
 ## Accessibility
 
@@ -60,6 +67,14 @@ Screenshots of every route in both themes, which needs a running Android emulato
 tool/screenshots.sh
 ```
 
+That set shoots whatever the device holds, so it wants a climb already logged there, and it says so if there is none. The three pictures under How it looks come from a library the harness seeds itself, which is why they are the same on any emulator:
+
+```
+tool/screenshots.sh readme
+```
+
+Both sets write into `screenshots/`, which is gitignored. `docs/screenshots/` holds the three curated and downscaled images the README uses, and those are committed.
+
 On an iOS simulator, drive the same target by hand. The script itself is Android-only because it picks its device through `adb`, but the Dart it runs is not:
 
 ```
@@ -68,8 +83,6 @@ flutter drive --device-id <simulator udid> \
   --driver test_driver/integration_test.dart \
   --target integration_test/screenshot_test.dart
 ```
-
-It wants a climb already logged on the device, and it says so if there is none.
 
 ## Numbers
 
