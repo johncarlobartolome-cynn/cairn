@@ -96,10 +96,10 @@ Release signing reads `android/key.properties`. That file is git-ignored, along 
 storePassword=<store password>
 keyPassword=<key password>
 keyAlias=<alias>
-storeFile=../cairn-release.jks
+storeFile=/absolute/path/to/cairn-upload.jks
 ```
 
-`storeFile` resolves against `android/`, the folder that holds `key.properties`, so a keystore kept outside the repository is reachable with `../`. An absolute path is used as written.
+Keep the keystore outside the repository. `*.jks` is git-ignored, but a key file living next to the code is one bad `git add -f` from being public, and a leaked signing key cannot be taken back. An absolute path is used as written. A relative one resolves against `android/`, the folder holding `key.properties`, which is one directory up from where Flutter's own documentation resolves it.
 
 With no `key.properties` the build signs with debug keys and says so, which is why a clone still builds. A file that is there but missing a value fails the build instead of falling back, because whoever wrote it meant to sign for real and quietly handing them debug keys would waste the release.
 
